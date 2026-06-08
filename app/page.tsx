@@ -9,6 +9,7 @@ export default function Home() {
   const [clientPhone, setClientPhone] = useState("");
   const [problem, setProblem] = useState("");
   const [urgency, setUrgency] = useState("normal");
+  const [search, setSearch] = useState("");
 
   async function chargerAppels() {
     const { data, error } = await supabase
@@ -115,11 +116,30 @@ export default function Home() {
         <p>Rappelés : {calls.filter((c) => c.status === "rappelé").length}</p>
         <p>Terminés : {calls.filter((c) => c.status === "termine").length}</p>
       </div>
-
+<input
+  type="text"
+  placeholder="Rechercher par nom ou téléphone..."
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+  style={{
+    width: "300px",
+    padding: "8px",
+    marginBottom: "20px",
+  }}
+/>
       <h2>Appels reçus</h2>
       <p>🟡 Nouveau → 🟢 Rappelé → 🔵 Terminé</p>
 
-      {calls.map((call) => (
+      {calls
+  .filter(
+    (call) =>
+      call.client_name
+        ?.toLowerCase()
+        .includes(search.toLowerCase()) ||
+      call.client_phone
+        ?.includes(search)
+  )
+  .map((call) => (
         <div
           key={call.id}
           style={{
@@ -143,9 +163,18 @@ export default function Home() {
           </div>
 
           <strong>{call.client_name}</strong>
-          <p>{call.client_phone}</p>
-          <p>{call.problem}</p>
 
+<p>{call.client_phone}</p>
+
+<p>
+  📅 {new Date(call.created_at).toLocaleDateString("fr-FR")} à{" "}
+  {new Date(call.created_at).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}
+</p>
+
+<p>{call.problem}</p>
           <p>
             Urgence :
             {call.urgency === "normal" && " 🟢 Normal"}
