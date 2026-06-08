@@ -10,6 +10,7 @@ export default function Home() {
   const [problem, setProblem] = useState("");
   const [urgency, setUrgency] = useState("normal");
   const [search, setSearch] = useState("");
+  const [filtreUrgence, setFiltreUrgence] = useState("tous");
 
   async function chargerAppels() {
     const { data, error } = await supabase
@@ -127,28 +128,62 @@ export default function Home() {
     marginBottom: "20px",
   }}
 />
+<div style={{ marginBottom: "15px" }}>
+ 
+
+  <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
+  <button onClick={() => setFiltreUrgence("tous")}>
+    Tous
+  </button>
+
+  <button onClick={() => setFiltreUrgence("urgent")}>
+    🔴 Urgents
+  </button>
+
+  <button onClick={() => setFiltreUrgence("important")}>
+    🟠 Importants
+  </button>
+
+  <button onClick={() => setFiltreUrgence("normal")}>
+    🟢 Normaux
+  </button>
+</div>
+</div>
       <h2>Appels reçus</h2>
       <p>🟡 Nouveau → 🟢 Rappelé → 🔵 Terminé</p>
 
       {calls
   .filter(
     (call) =>
-      call.client_name
+      (call.client_name
         ?.toLowerCase()
         .includes(search.toLowerCase()) ||
-      call.client_phone
-        ?.includes(search)
+        call.client_phone?.includes(search)) &&
+      (filtreUrgence === "tous" ||
+        call.urgency === filtreUrgence)
   )
   .map((call) => (
         <div
           key={call.id}
-          style={{
-            border: call.urgency === "urgent" ? "2px solid red" : "1px solid #ddd",
-            backgroundColor: call.urgency === "urgent" ? "#fff5f5" : "white",
-            padding: "10px",
-            marginTop: "10px",
-            borderRadius: "8px",
-          }}
+         style={{
+  border:
+    call.urgency === "urgent"
+      ? "2px solid red"
+      : call.urgency === "important"
+      ? "2px solid orange"
+      : "2px solid green",
+
+  backgroundColor:
+    call.urgency === "urgent"
+      ? "#ffe5e5"
+      : call.urgency === "important"
+      ? "#fff4e5"
+      : "#eaffea",
+
+  padding: "10px",
+  marginTop: "10px",
+  borderRadius: "8px",
+}}
         >
           <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
             {call.status === "nouveau" && (
