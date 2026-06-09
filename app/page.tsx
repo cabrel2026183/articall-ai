@@ -11,8 +11,9 @@ export default function Home() {
   const [urgency, setUrgency] = useState("normal");
   const [search, setSearch] = useState("");
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
-const [user, setUser] = useState<any>(null);
-const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [interventionDate, setInterventionDate] = useState("");
 
   async function chargerAppels() {
     const {
@@ -42,6 +43,7 @@ const { data, error } = await supabase
   client_phone: clientPhone,
   problem,
   urgency,
+  intervention_date: interventionDate,
   summary: problem,
   status: "nouveau",
 });
@@ -124,6 +126,9 @@ function afficherDate(date: string) {
 >
   Déconnexion
 </button>
+<p>
+  Connecté : {user?.email}
+</p>
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
 
       <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
@@ -140,7 +145,12 @@ function afficherDate(date: string) {
         <textarea placeholder="Décrivez le problème" value={problem}
           onChange={(e) => setProblem(e.target.value)}
           style={{ display: "block", marginBottom: "10px", width: "300px" }} />
-
+<input
+  type="datetime-local"
+  value={interventionDate}
+  onChange={(e) => setInterventionDate(e.target.value)}
+  style={{ display: "block", marginBottom: "10px", width: "300px" }}
+/>
         <select value={urgency} onChange={(e) => setUrgency(e.target.value)}
           style={{ display: "block", marginBottom: "10px" }}>
           <option value="normal">Normal</option>
@@ -263,7 +273,16 @@ function afficherDate(date: string) {
 </a>
 
 <p>📅 {afficherDate(call.created_at)}</p>
-
+{call.intervention_date && (
+  <p>
+    🛠️ Intervention :
+    {" "}
+    {new Date(call.intervention_date).toLocaleString("fr-FR", {
+  dateStyle: "short",
+  timeStyle: "short",
+})}
+  </p>
+)}
 <p>{call.problem}</p>
           <p>
             Urgence :
