@@ -107,7 +107,14 @@ function afficherDate(date: string) {
   return (
     <main style={{ padding: "40px" }}>
       <h1>ArtiCall AI</h1>
-
+<button
+  onClick={async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }}
+>
+  Déconnexion
+</button>
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
 
       <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
