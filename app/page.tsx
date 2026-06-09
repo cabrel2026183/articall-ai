@@ -11,6 +11,8 @@ export default function Home() {
   const [urgency, setUrgency] = useState("normal");
   const [search, setSearch] = useState("");
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
+const [user, setUser] = useState<any>(null);
+const [loading, setLoading] = useState(true);
 
   async function chargerAppels() {
     const { data, error } = await supabase
@@ -76,9 +78,32 @@ export default function Home() {
   }
 
   useEffect(() => {
-    chargerAppels();
-  }, []);
+  async function verifierConnexion() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setUser(user);
+    setLoading(false);
+    chargerAppels();
+  }
+
+  verifierConnexion();
+}, []);
+if (loading) {
+ return <main style={{ padding: "40px" }}>Chargement...</main>;
+}
+function afficherDate(date: string) {
+  return new Date(date).toLocaleString("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
   return (
     <main style={{ padding: "40px" }}>
       <h1>ArtiCall AI</h1>
@@ -221,13 +246,7 @@ export default function Home() {
   <button>📞 Appeler</button>
 </a>
 
-<p>
-  📅 {new Date(call.created_at).toLocaleDateString("fr-FR")} à{" "}
-  {new Date(call.created_at).toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}
-</p> 
+<p>📅 {afficherDate(call.created_at)}</p>
 
 <p>{call.problem}</p>
           <p>
