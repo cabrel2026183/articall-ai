@@ -110,13 +110,29 @@ export default function Home() {
         <button onClick={ajouterAppel}>Enregistrer l'appel</button>
       </div>
 
-      <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
-        <h3>Tableau de bord</h3>
-        <p>Total appels : {calls.length}</p>
-        <p>Nouveaux : {calls.filter((c) => c.status === "nouveau").length}</p>
-        <p>Rappelés : {calls.filter((c) => c.status === "rappelé").length}</p>
-        <p>Terminés : {calls.filter((c) => c.status === "termine").length}</p>
-      </div>
+      <div
+  style={{
+    border: "1px solid #ddd",
+    padding: "15px",
+    marginBottom: "20px",
+  }}
+>
+  <h3>Tableau de bord</h3>
+
+  <p>Nombre total d'appels : {calls.length}</p>
+
+  <p>🔴 Urgents : {calls.filter((call) => call.urgency === "urgent").length}</p>
+
+  <p>🟠 Importants : {calls.filter((call) => call.urgency === "important").length}</p>
+
+  <p>🟢 Normaux : {calls.filter((call) => call.urgency === "normal").length}</p>
+
+  <p>Nouveaux : {calls.filter((call) => call.status === "nouveau").length}</p>
+
+  <p>Rappelés : {calls.filter((call) => call.status === "rappelé").length}</p>
+
+  <p>Terminés : {calls.filter((call) => call.status === "termine").length}</p>
+</div>
 <input
   type="text"
   placeholder="Rechercher par nom ou téléphone..."
@@ -197,9 +213,13 @@ export default function Home() {
             <button onClick={() => supprimerAppel(call.id)}>Supprimer</button>
           </div>
 
-          <strong>{call.client_name}</strong>
+         <strong>{call.client_name}</strong>
 
 <p>{call.client_phone}</p>
+
+<a href={`tel:${call.client_phone}`}>
+  <button>📞 Appeler</button>
+</a>
 
 <p>
   📅 {new Date(call.created_at).toLocaleDateString("fr-FR")} à{" "}
@@ -207,7 +227,7 @@ export default function Home() {
     hour: "2-digit",
     minute: "2-digit",
   })}
-</p>
+</p> 
 
 <p>{call.problem}</p>
           <p>
