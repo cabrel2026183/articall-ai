@@ -15,10 +15,15 @@ const [user, setUser] = useState<any>(null);
 const [loading, setLoading] = useState(true);
 
   async function chargerAppels() {
-    const { data, error } = await supabase
-      .from("calls")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+const { data, error } = await supabase
+  .from("calls")
+  .select("*")
+  .eq("user_id", user?.id)
+  .order("created_at", { ascending: false });
 
     if (error) {
       alert(error.message);
@@ -28,14 +33,18 @@ const [loading, setLoading] = useState(true);
   }
 
   async function ajouterAppel() {
-    const { error } = await supabase.from("calls").insert({
-      client_name: clientName,
-      client_phone: clientPhone,
-      problem,
-      urgency,
-      summary: problem,
-      status: "nouveau",
-    });
+    const {
+  data: { user },
+} = await supabase.auth.getUser();
+   const { error } = await supabase.from("calls").insert({
+  user_id: user?.id,
+  client_name: clientName,
+  client_phone: clientPhone,
+  problem,
+  urgency,
+  summary: problem,
+  status: "nouveau",
+});
 
     if (error) {
       alert(error.message);
