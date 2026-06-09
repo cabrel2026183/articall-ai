@@ -216,6 +216,27 @@ function afficherDate(date: string) {
   </button>
 </div>
 </div>
+<h2>📅 Interventions à venir</h2>
+
+{calls
+  .filter((call) => call.intervention_date)
+  .sort(
+    (a, b) =>
+      new Date(a.intervention_date).getTime() -
+      new Date(b.intervention_date).getTime()
+  )
+  .map((call) => (
+    <div key={call.id}>
+      <p>
+        🛠️ {call.client_name} -
+        {" "}
+        {new Date(call.intervention_date).toLocaleString("fr-FR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        })}
+      </p>
+    </div>
+  ))}
       <h2>Appels reçus</h2>
       <p>🟡 Nouveau → 🟢 Rappelé → 🔵 Terminé</p>
 
