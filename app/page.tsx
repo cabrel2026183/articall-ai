@@ -216,10 +216,85 @@ function afficherDate(date: string) {
   </button>
 </div>
 </div>
-<h2>📅 Interventions à venir</h2>
+<h2>🚨 Interventions du jour</h2>
 
 {calls
-  .filter((call) => call.intervention_date)
+  .filter((call) => {
+    if (!call.intervention_date) return false;
+
+    const today = new Date();
+    const intervention = new Date(call.intervention_date);
+
+    return (
+      intervention.getDate() === today.getDate() &&
+      intervention.getMonth() === today.getMonth() &&
+      intervention.getFullYear() === today.getFullYear()
+    );
+  })
+  .map((call) => (
+    <div key={`today-${call.id}`}>
+      <p>
+        🛠️ {call.client_name} -{" "}
+        {new Date(call.intervention_date).toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </p>
+    </div>
+  ))}
+ <h2>⚠️ Interventions en retard</h2>
+<p>
+  Une intervention est en retard si l'heure prévue est passée et que le statut n'est pas terminé.
+</p>
+
+{calls
+  .filter((call) => {
+    if (!call.intervention_date) return false;
+
+    const intervention = new Date(call.intervention_date);
+    const today = new Date();
+
+    const estAujourdHui =
+      intervention.getDate() === today.getDate() &&
+      intervention.getMonth() === today.getMonth() &&
+      intervention.getFullYear() === today.getFullYear();
+
+    return (
+      !estAujourdHui &&
+      intervention < today &&
+      call.status !== "termine"
+    );
+  })
+  .map((call) => (
+    <div key={`late-${call.id}`}>
+      <p>
+        🛠️ {call.client_name} -{" "}
+        {new Date(call.intervention_date).toLocaleString("fr-FR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        })}
+      </p>
+    </div>
+  ))}
+<h2>📅 Interventions à venir</h2>
+{calls
+  .filter((call) => {
+  if (!call.intervention_date) return false;
+
+  const intervention = new Date(call.intervention_date);
+  const now = new Date();
+
+  const estAujourdHui =
+    intervention.getDate() === now.getDate() &&
+    intervention.getMonth() === now.getMonth() &&
+    intervention.getFullYear() === now.getFullYear();
+
+  return (
+    !estAujourdHui &&
+    intervention > now &&
+    call.status !== "termine"
+  );
+})
   .sort(
     (a, b) =>
       new Date(a.intervention_date).getTime() -
