@@ -154,12 +154,13 @@ function afficherDate(date: string) {
 <p>
   Connecté : {user?.email}
 </p>
-
+<p>Email détecté : {user?.email}</p>
 {isAdmin && (
   <p style={{ color: "red", fontWeight: "bold" }}>
     👑 Administrateur
   </p>
 )}
+<p>Admin ? {String(isAdmin)}</p>
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
 
       <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
