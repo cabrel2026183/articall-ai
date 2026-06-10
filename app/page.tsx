@@ -12,6 +12,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
   const [user, setUser] = useState<any>(null);
+  const isAdmin = user?.email === "engomecabrel@gmail.com";
   const [loading, setLoading] = useState(true);
   const [interventionDate, setInterventionDate] = useState("");
 
@@ -20,12 +21,16 @@ export default function Home() {
   data: { user },
 } = await supabase.auth.getUser();
 
-const { data, error } = await supabase
+let query = supabase
   .from("calls")
   .select("*")
-  .eq("user_id", user?.id)
   .order("created_at", { ascending: false });
 
+if (user?.email !== "engomecabrel@gmail.com") {
+  query = query.eq("user_id", user?.id);
+}
+
+const { data, error } = await query;
     if (error) {
       alert(error.message);
     } else {
@@ -90,10 +95,30 @@ const { data, error } = await supabase
 
   useEffect(() => {
   async function verifierConnexion() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    async function chargerAppels() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  if (!user) return;
+
+  let query = supabase
+    .from("calls")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (user.email !== "engomecabrel@gmail.com") {
+    query = query.eq("user_id", user.id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    alert(error.message);
+  } else {
+    setCalls(data || []);
+  }
+}
     if (!user) {
       window.location.href = "/login";
       return;
@@ -129,6 +154,12 @@ function afficherDate(date: string) {
 <p>
   Connecté : {user?.email}
 </p>
+
+{isAdmin && (
+  <p style={{ color: "red", fontWeight: "bold" }}>
+    👑 Administrateur
+  </p>
+)}
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
 
       <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
