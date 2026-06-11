@@ -12,7 +12,10 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
   const [user, setUser] = useState<any>(null);
-  const isAdmin = user?.email === "engomecabrel@gmail.com";
+ const ADMIN_EMAIL = "engomecabrel@gmail.com";
+
+const isAdmin =
+  user?.email?.toLowerCase().trim() === ADMIN_EMAIL;
   const [loading, setLoading] = useState(true);
   const [interventionDate, setInterventionDate] = useState("");
 
@@ -154,6 +157,13 @@ function afficherDate(date: string) {
 <p>
   Connecté : {user?.email}
 </p>
+{isAdmin ? (
+  <p style={{ color: "red", fontWeight: "bold" }}>
+    👑 Administrateur
+  </p>
+) : (
+  <p>Compte utilisateur</p>
+)}
 <p>Email détecté : {user?.email}</p>
 {isAdmin && (
   <p style={{ color: "red", fontWeight: "bold" }}>
