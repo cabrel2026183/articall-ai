@@ -53,6 +53,7 @@ const { data, error } = await query;
   problem,
   urgency,
   intervention_date: interventionDate,
+  amount: amount ? Number(amount) : null,
   summary: problem,
   status: "nouveau",
 });
@@ -64,6 +65,8 @@ const { data, error } = await query;
       setClientPhone("");
       setProblem("");
       setUrgency("normal");
+      setAmount("");
+setInterventionDate("");
       chargerAppels();
     }
   }
@@ -409,13 +412,13 @@ function afficherDate(date: string) {
   </p>
 )}
 
-<p>
-  {call.amount !== null && call.amount !== undefined && (
+{call.amount !== null && call.amount !== undefined && (
   <p>
     💰 Montant : {call.amount} €
   </p>
 )}
-{call.problem}</p>
+
+<p>{call.problem}</p>
           <p>
             Urgence :
             {call.urgency === "normal" && " 🟢 Normal"}
