@@ -14,11 +14,12 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
  const ADMIN_EMAIL = "engomecabrel@gmail.com";
 
+
 const isAdmin =
   user?.email?.toLowerCase().trim() === ADMIN_EMAIL;
   const [loading, setLoading] = useState(true);
   const [interventionDate, setInterventionDate] = useState("");
-
+ const [amount, setAmount] = useState("");
   async function chargerAppels() {
     const {
   data: { user },
@@ -166,6 +167,18 @@ function afficherDate(date: string) {
   value={interventionDate}
   onChange={(e) => setInterventionDate(e.target.value)}
   style={{ display: "block", marginBottom: "10px", width: "300px" }}
+/>
+
+<input
+  type="number"
+  placeholder="Montant (€)"
+  value={amount}
+  onChange={(e) => setAmount(e.target.value)}
+  style={{
+    display: "block",
+    marginBottom: "10px",
+    width: "300px",
+  }}
 />
         <select value={urgency} onChange={(e) => setUrgency(e.target.value)}
           style={{ display: "block", marginBottom: "10px" }}>
@@ -395,7 +408,14 @@ function afficherDate(date: string) {
 })}
   </p>
 )}
-<p>{call.problem}</p>
+
+<p>
+  {call.amount !== null && call.amount !== undefined && (
+  <p>
+    💰 Montant : {call.amount} €
+  </p>
+)}
+{call.problem}</p>
           <p>
             Urgence :
             {call.urgency === "normal" && " 🟢 Normal"}
