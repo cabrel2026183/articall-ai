@@ -98,30 +98,10 @@ const { data, error } = await query;
 
   useEffect(() => {
   async function verifierConnexion() {
-    async function chargerAppels() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) return;
-
-  let query = supabase
-    .from("calls")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (user.email !== "engomecabrel@gmail.com") {
-    query = query.eq("user_id", user.id);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    alert(error.message);
-  } else {
-    setCalls(data || []);
-  }
-}
     if (!user) {
       window.location.href = "/login";
       return;
@@ -164,13 +144,7 @@ function afficherDate(date: string) {
 ) : (
   <p>Compte utilisateur</p>
 )}
-<p>Email détecté : {user?.email}</p>
-{isAdmin && (
-  <p style={{ color: "red", fontWeight: "bold" }}>
-    👑 Administrateur
-  </p>
-)}
-<p>Admin ? {String(isAdmin)}</p>
+
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
 
       <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
