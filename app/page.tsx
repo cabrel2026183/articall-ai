@@ -201,7 +201,13 @@ function afficherDate(date: string) {
   }}
 >
   <h3>Tableau de bord</h3>
-
+<p>
+  💰 Chiffre d'affaires total :{" "}
+  {calls.reduce(
+    (total, call) => total + (call.amount || 0),
+    0
+  )} €
+</p>
   <p>Nombre total d'appels : {calls.length}</p>
 
   <p>🔴 Urgents : {calls.filter((call) => call.urgency === "urgent").length}</p>
