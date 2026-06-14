@@ -21,6 +21,7 @@ const isAdmin =
   const [interventionDate, setInterventionDate] = useState("");
  const [amount, setAmount] = useState("");
  const [paymentStatus, setPaymentStatus] = useState("non_paye");
+ const [editingId, setEditingId] = useState<string | null>(null);
   async function chargerAppels() {
     const {
   data: { user },
@@ -44,35 +45,54 @@ const { data, error } = await query;
   }
 
   async function ajouterAppel() {
-    const {
-  data: { user },
-} = await supabase.auth.getUser();
-   const { error } = await supabase.from("calls").insert({
-  user_id: user?.id,
-  client_name: clientName,
-  client_phone: clientPhone,
-  problem,
-  urgency,
-  intervention_date: interventionDate,
-  amount: amount ? Number(amount) : null,
-  payment_status: paymentStatus,
-  summary: problem,
-  status: "nouveau",
-});
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    if (error) {
-      alert(error.message);
-    } else {
-      setClientName("");
-      setClientPhone("");
-      setProblem("");
-      setUrgency("normal");
-      setAmount("");
-      setPaymentStatus("non_paye");
-setInterventionDate("");
-      chargerAppels();
-    }
+  const appelData = {
+    user_id: user?.id,
+    client_name: clientName,
+    client_phone: clientPhone,
+    problem,
+    urgency,
+    intervention_date: interventionDate || null,
+    amount: amount ? Number(amount) : null,
+    payment_status: paymentStatus,
+    summary: problem,
+    status: "nouveau",
+  };
+
+  let error;
+
+  if (editingId) {
+    const result = await supabase
+      .from("calls")
+      .update(appelData)
+      .eq("id", editingId);
+
+    error = result.error;
+  } else {
+    const result = await supabase
+      .from("calls")
+      .insert(appelData);
+
+    error = result.error;
   }
+
+  if (error) {
+    alert(error.message);
+  } else {
+    setClientName("");
+    setClientPhone("");
+    setProblem("");
+    setUrgency("normal");
+    setAmount("");
+    setPaymentStatus("non_paye");
+    setInterventionDate("");
+    setEditingId(null);
+    chargerAppels();
+  }
+}
 
   async function marquerRappele(id: string) {
     const { error } = await supabase
@@ -94,6 +114,19 @@ setInterventionDate("");
     else chargerAppels();
   }
 
+async function marquerPaye(id: string) {
+  const { error } = await supabase
+    .from("calls")
+    .update({ payment_status: "paye" })
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+  } else {
+    chargerAppels();
+  }
+}
+
   async function supprimerAppel(id: string) {
     if (!confirm("Voulez-vous vraiment supprimer cet appel ?")) return;
 
@@ -102,7 +135,29 @@ setInterventionDate("");
     if (error) alert(error.message);
     else chargerAppels();
   }
+  function modifierAppel(call: any) {
+  setEditingId(call.id);
+  setClientName(call.client_name || "");
+  setClientPhone(call.client_phone || "");
+  setProblem(call.problem || "");
+  setUrgency(call.urgency || "normal");
 
+  setInterventionDate(
+    call.intervention_date
+      ? new Date(call.intervention_date).toISOString().slice(0, 16)
+      : ""
+  );
+
+  setAmount(
+    call.amount !== null && call.amount !== undefined
+      ? String(call.amount)
+      : ""
+  );
+
+  setPaymentStatus(call.payment_status || "non_paye");
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
   useEffect(() => {
   async function verifierConnexion() {
     const {
@@ -205,7 +260,9 @@ function afficherDate(date: string) {
           <option value="urgent">Urgent</option>
         </select>
 
-        <button onClick={ajouterAppel}>Enregistrer l'appel</button>
+        <button onClick={ajouterAppel}>
+  {editingId ? "Modifier l'appel" : "Enregistrer l'appel"}
+</button>
       </div>
 
       <div
@@ -426,6 +483,15 @@ function afficherDate(date: string) {
               <button onClick={() => marquerTermine(call.id)}>Terminé</button>
             )}
 
+            <button onClick={() => modifierAppel(call)}>
+            Modifier
+            </button>
+
+            {call.payment_status !== "paye" && (
+           <button onClick={() => marquerPaye(call.id)}>
+           ✅ Marquer payé
+           </button>
+            )}
             <button onClick={() => supprimerAppel(call.id)}>Supprimer</button>
           </div>
 
