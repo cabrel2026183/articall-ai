@@ -20,6 +20,7 @@ const isAdmin =
   const [loading, setLoading] = useState(true);
   const [interventionDate, setInterventionDate] = useState("");
  const [amount, setAmount] = useState("");
+ const [paymentStatus, setPaymentStatus] = useState("non_paye");
   async function chargerAppels() {
     const {
   data: { user },
@@ -54,6 +55,7 @@ const { data, error } = await query;
   urgency,
   intervention_date: interventionDate,
   amount: amount ? Number(amount) : null,
+  payment_status: paymentStatus,
   summary: problem,
   status: "nouveau",
 });
@@ -66,6 +68,7 @@ const { data, error } = await query;
       setProblem("");
       setUrgency("normal");
       setAmount("");
+      setPaymentStatus("non_paye");
 setInterventionDate("");
       chargerAppels();
     }
@@ -183,6 +186,18 @@ function afficherDate(date: string) {
     width: "300px",
   }}
 />
+<select
+  value={paymentStatus}
+  onChange={(e) => setPaymentStatus(e.target.value)}
+  style={{
+    display: "block",
+    marginBottom: "10px",
+  }}
+>
+  <option value="non_paye">💸 Non payé</option>
+  <option value="paye">✅ Payé</option>
+</select>
+
         <select value={urgency} onChange={(e) => setUrgency(e.target.value)}
           style={{ display: "block", marginBottom: "10px" }}>
           <option value="normal">Normal</option>
@@ -206,7 +221,23 @@ function afficherDate(date: string) {
   {calls.reduce(
     (total, call) => total + (call.amount || 0),
     0
-  )} €
+)} €
+
+</p>
+
+<p>
+  💰 CA encaissé :{" "}
+  {calls
+    .filter((call) => call.payment_status === "paye")
+    .reduce((total, call) => total + (call.amount || 0), 0)}
+  {" "}€
+</p>
+<p>
+  ⏳ Reste à encaisser :{" "}
+  {calls
+    .filter((call) => call.payment_status !== "paye")
+    .reduce((total, call) => total + (call.amount || 0), 0)}
+  {" "}€
 </p>
   <p>Nombre total d'appels : {calls.length}</p>
 
@@ -423,6 +454,12 @@ function afficherDate(date: string) {
     💰 Montant : {call.amount} €
   </p>
 )}
+<p>
+  Paiement :
+  {call.payment_status === "paye"
+    ? " ✅ Payé"
+    : " 💸 Non payé"}
+</p>
 
 <p>{call.problem}</p>
           <p>
