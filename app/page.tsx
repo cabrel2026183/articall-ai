@@ -26,6 +26,7 @@ const isAdmin =
   const [interventionDate, setInterventionDate] = useState("");
  const [amount, setAmount] = useState("");
  const [paymentStatus, setPaymentStatus] = useState("non_paye");
+ const [technician, setTechnician] = useState("");
  const [editingId, setEditingId] = useState<string | null>(null);
   async function chargerAppels() {
     const {
@@ -63,6 +64,7 @@ const { data, error } = await query;
     intervention_date: interventionDate || null,
     amount: amount ? Number(amount) : null,
     payment_status: paymentStatus,
+    technician: technician,
     summary: problem,
     status: "nouveau",
   };
@@ -306,6 +308,20 @@ function afficherDate(date: string) {
 >
   <option value="non_paye">💸 Non payé</option>
   <option value="paye">✅ Payé</option>
+</select>
+
+<select
+  value={technician}
+  onChange={(e) => setTechnician(e.target.value)}
+  style={{
+    display: "block",
+    marginBottom: "10px",
+  }}
+>
+  <option value="">Aucun technicien</option>
+  <option value="Issa">Issa</option>
+  <option value="Idriss">Idriss</option>
+  <option value="Dupont">Dupont</option>
 </select>
 
         <select value={urgency} onChange={(e) => setUrgency(e.target.value)}
@@ -605,6 +621,12 @@ function afficherDate(date: string) {
     ? " ✅ Payé"
     : " 💸 Non payé"}
 </p>
+
+{call.technician && (
+  <p>
+    👷 Technicien : {call.technician}
+  </p>
+)}
 
 <p>{call.problem}</p>
           <p>
