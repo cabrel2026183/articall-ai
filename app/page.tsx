@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function Home() {
   const [calls, setCalls] = useState<any[]>([]);
@@ -125,6 +127,56 @@ async function marquerPaye(id: string) {
   } else {
     chargerAppels();
   }
+}
+
+function genererBonIntervention(call: any) {
+  const doc = new jsPDF();
+
+  doc.setFontSize(20);
+  doc.text("ARTICALL AI", 20, 20);
+
+  doc.setFontSize(14);
+  doc.text("BON D'INTERVENTION", 20, 32);
+
+  autoTable(doc, {
+    startY: 45,
+    head: [["Information", "Détail"]],
+    body: [
+      ["Client", call.client_name || ""],
+      ["Téléphone", call.client_phone || ""],
+      ["Problème", call.problem || ""],
+      [
+        "Date intervention",
+        call.intervention_date
+          ? new Date(call.intervention_date).toLocaleString("fr-FR")
+          : "",
+      ],
+      ["Montant", `${call.amount || 0} €`],
+     [
+  "Paiement",
+  call.payment_status === "paye"
+    ? "Payé"
+    : "Non payé",
+],
+      [
+  "Statut",
+  call.status === "nouveau"
+    ? "Nouveau"
+    : call.status === "rappelé"
+    ? "Rappelé"
+    : "Terminé",
+],
+    ],
+  });
+
+  doc.setFontSize(10);
+  doc.text(
+    "Document généré par ArtiCall AI - Non valable comme facture officielle",
+    20,
+    280
+  );
+
+  doc.save(`bon-intervention-${call.client_name || "client"}.pdf`);
 }
 
   async function supprimerAppel(id: string) {
@@ -486,6 +538,10 @@ function afficherDate(date: string) {
             <button onClick={() => modifierAppel(call)}>
             Modifier
             </button>
+
+            <button onClick={() => genererBonIntervention(call)}>
+           📄 Générer PDF
+           </button>
 
             {call.payment_status !== "paye" && (
            <button onClick={() => marquerPaye(call.id)}>
