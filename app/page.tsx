@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import frLocale from "@fullcalendar/core/locales/fr";
 
 export default function Home() {
   const [calls, setCalls] = useState<any[]>([]);
@@ -394,6 +397,26 @@ function afficherDate(date: string) {
   </button>
 </div>
 </div>
+<h2>📅 Calendrier des interventions</h2>
+
+<FullCalendar
+  plugins={[dayGridPlugin]}
+  initialView="dayGridMonth"
+  locale={frLocale}
+  height="auto"
+  events={calls
+    .filter((call) => call.intervention_date)
+    .map((call) => ({
+      title: `${call.client_name}`,
+      date: call.intervention_date,
+      color:
+        call.urgency === "urgent"
+          ? "red"
+          : call.urgency === "important"
+          ? "orange"
+          : "green",
+    }))}
+/>
 <h2>🚨 Interventions du jour</h2>
 
 {calls
