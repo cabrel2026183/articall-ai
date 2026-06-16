@@ -16,8 +16,9 @@ export default function Home() {
   const [urgency, setUrgency] = useState("normal");
   const [search, setSearch] = useState("");
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
+  const [filtreTechnicien, setFiltreTechnicien] = useState("tous");
   const [user, setUser] = useState<any>(null);
- const ADMIN_EMAIL = "engomecabrel@gmail.com";
+   const ADMIN_EMAIL = "engomecabrel@gmail.com";
 
 
 const isAdmin =
@@ -27,6 +28,7 @@ const isAdmin =
  const [amount, setAmount] = useState("");
  const [paymentStatus, setPaymentStatus] = useState("non_paye");
  const [technician, setTechnician] = useState("");
+ const [selectedCall, setSelectedCall] = useState<any>(null);
  const [editingId, setEditingId] = useState<string | null>(null);
   async function chargerAppels() {
     const {
@@ -412,6 +414,21 @@ function afficherDate(date: string) {
     🟢 Normaux
   </button>
 </div>
+
+<select
+  value={filtreTechnicien}
+  onChange={(e) => setFiltreTechnicien(e.target.value)}
+  style={{
+    marginBottom: "15px",
+    padding: "8px",
+  }}
+>
+  <option value="tous">Tous les techniciens</option>
+  <option value="Issa">Issa</option>
+  <option value="Idriss">Idriss</option>
+  <option value="Dupont">Dupont</option>
+</select>
+
 </div>
 <h2>📅 Calendrier des interventions</h2>
 
@@ -420,19 +437,78 @@ function afficherDate(date: string) {
   initialView="dayGridMonth"
   locale={frLocale}
   height="auto"
-  events={calls
-    .filter((call) => call.intervention_date)
-    .map((call) => ({
-      title: `${call.client_name}`,
-      date: call.intervention_date,
-      color:
-        call.urgency === "urgent"
-          ? "red"
-          : call.urgency === "important"
-          ? "orange"
-          : "green",
-    }))}
+  eventDisplay="block"
+ events={calls
+  .filter((call) => call.intervention_date)
+  .map((call) => ({
+    title: `${call.client_name}`,
+    date: call.intervention_date,
+    color:
+      call.urgency === "urgent"
+        ? "red"
+        : call.urgency === "important"
+        ? "orange"
+        : "green",
+    extendedProps: {
+      call,
+    },
+  }))}
+eventClick={(info) => {
+  setSelectedCall(info.event.extendedProps.call);
+}}
+
 />
+{selectedCall && (
+  <div
+    style={{
+      border: "2px solid #333",
+      padding: "15px",
+      marginBottom: "20px",
+      borderRadius: "10px",
+      backgroundColor: "#f5f5f5",
+    }}
+  >
+    <h3>{selectedCall.client_name}</h3>
+
+    <p>📞 {selectedCall.client_phone}</p>
+
+    <p>🛠️ {selectedCall.problem}</p>
+
+    {selectedCall.technician && (
+  <p>
+    👷 {selectedCall.technician}
+  </p>
+)}
+
+{selectedCall.amount !== null &&
+ selectedCall.amount !== undefined && (
+  <p>
+    💰 {selectedCall.amount} €
+  </p>
+)}
+
+<div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+  <button onClick={() => modifierAppel(selectedCall)}>
+    ✏️ Modifier
+  </button>
+
+  <button onClick={() => genererBonIntervention(selectedCall)}>
+    📄 PDF
+  </button>
+
+  {selectedCall.payment_status !== "paye" && (
+    <button onClick={() => marquerPaye(selectedCall.id)}>
+      ✅ Marquer payé
+    </button>
+  )}
+
+  <button onClick={() => setSelectedCall(null)}>
+    Fermer
+  </button>
+</div>
+
+  </div>
+)}
 <h2>🚨 Interventions du jour</h2>
 
 {calls
@@ -539,8 +615,12 @@ function afficherDate(date: string) {
         ?.toLowerCase()
         .includes(search.toLowerCase()) ||
         call.client_phone?.includes(search)) &&
+
       (filtreUrgence === "tous" ||
-        call.urgency === filtreUrgence)
+        call.urgency === filtreUrgence) &&
+
+      (filtreTechnicien === "tous" ||
+        call.technician === filtreTechnicien)
   )
   .map((call) => (
         <div
