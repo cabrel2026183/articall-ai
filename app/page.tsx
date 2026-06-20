@@ -12,6 +12,7 @@ export default function Home() {
   const [calls, setCalls] = useState<any[]>([]);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [problem, setProblem] = useState("");
   const [urgency, setUrgency] = useState("normal");
   const [search, setSearch] = useState("");
@@ -61,6 +62,7 @@ const { data, error } = await query;
     user_id: user?.id,
     client_name: clientName,
     client_phone: clientPhone,
+    client_email: clientEmail,
     problem,
     urgency,
     intervention_date: interventionDate || null,
@@ -122,6 +124,24 @@ const { data, error } = await query;
     if (error) alert(error.message);
     else chargerAppels();
   }
+
+
+async function enregistrerNumeroFacture(
+  id: string,
+  invoiceNumber: string
+) {
+  const { error } = await supabase
+    .from("calls")
+    .update({
+      invoice_number: invoiceNumber,
+      invoice_date: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+  }
+}
 
 async function marquerPaye(id: string) {
   const { error } = await supabase
@@ -185,7 +205,164 @@ function genererBonIntervention(call: any) {
 
   doc.save(`bon-intervention-${call.client_name || "client"}.pdf`);
 }
+function genererFacture(call: any) {
+  const doc = new jsPDF();
 
+  const numeroFacture =
+  call.invoice_number ||
+  `FAC-${new Date().getFullYear()}-${call.id.slice(0, 6)}`;
+
+if (!call.invoice_number) {
+  enregistrerNumeroFacture(call.id, numeroFacture);
+}
+
+  doc.setFontSize(20);
+  doc.text("ARTICALL AI", 20, 20);
+
+  doc.setFontSize(16);
+  doc.text("FACTURE", 20, 35);
+
+  autoTable(doc, {
+    startY: 50,
+    head: [["Information", "Valeur"]],
+    body: [
+      ["Facture", numeroFacture],
+      ["Client", call.client_name || ""],
+      ["Téléphone", call.client_phone || ""],
+      ["Email", call.client_email || ""],
+      ["Prestation", call.problem || ""],
+      [
+        "Date",
+        call.intervention_date
+          ? new Date(call.intervention_date).toLocaleDateString("fr-FR")
+          : "",
+      ],
+      ["Montant TTC", `${call.amount || 0} €`],
+      [
+        "Paiement",
+        call.payment_status === "paye"
+          ? "Payé"
+          : "Non payé",
+      ],
+    ],
+  });
+
+  doc.save(`facture-${numeroFacture}.pdf`);
+}
+async function envoyerEmail(call: any) {
+  try {
+    const doc = new jsPDF();
+
+    doc.setFontSize(20);
+    doc.text("ARTICALL AI", 20, 20);
+
+    doc.setFontSize(14);
+    doc.text("BON D'INTERVENTION", 20, 32);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [["Information", "Détail"]],
+      body: [
+        ["Client", call.client_name || ""],
+        ["Téléphone", call.client_phone || ""],
+        ["Email", call.client_email || ""],
+        ["Problème", call.problem || ""],
+        [
+          "Date intervention",
+          call.intervention_date
+            ? new Date(call.intervention_date).toLocaleString("fr-FR")
+            : "",
+        ],
+        ["Montant", `${call.amount || 0} €`],
+        ["Paiement", call.payment_status === "paye" ? "Payé" : "Non payé"],
+        ["Technicien", call.technician || ""],
+      ],
+    });
+
+    const pdfBase64 = doc.output("datauristring").split(",")[1];
+
+    const response = await fetch("/api/send-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: call.client_email,
+        clientName: call.client_name,
+        pdfBase64,
+      }),
+    });
+
+    if (response.ok) {
+      alert("Email avec PDF envoyé avec succès !");
+    } else {
+      const result = await response.json();
+      alert("Erreur : " + JSON.stringify(result));
+    }
+  } catch (error) {
+    alert("Erreur lors de l'envoi.");
+  }
+}
+async function envoyerFacture(call: any) {
+  try {
+    const doc = new jsPDF();
+
+    const numeroFacture =
+      call.invoice_number ||
+      `FAC-${new Date().getFullYear()}-${call.id.slice(0, 6)}`;
+
+    doc.setFontSize(20);
+    doc.text("ARTICALL AI", 20, 20);
+
+    doc.setFontSize(16);
+    doc.text("FACTURE", 20, 35);
+
+    autoTable(doc, {
+      startY: 50,
+      head: [["Information", "Valeur"]],
+      body: [
+        ["Facture", numeroFacture],
+        ["Client", call.client_name || ""],
+        ["Téléphone", call.client_phone || ""],
+        ["Email", call.client_email || ""],
+        ["Prestation", call.problem || ""],
+        [
+          "Date",
+          call.intervention_date
+            ? new Date(call.intervention_date).toLocaleDateString("fr-FR")
+            : "",
+        ],
+        ["Montant TTC", `${call.amount || 0} €`],
+        ["Paiement", call.payment_status === "paye" ? "Payé" : "Non payé"],
+      ],
+    });
+
+    const pdfBase64 = doc.output("datauristring").split(",")[1];
+
+    const response = await fetch("/api/send-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: call.client_email,
+        clientName: call.client_name,
+        pdfBase64,
+        filename: `facture-${numeroFacture}.pdf`,
+        subject: `Votre facture ${numeroFacture}`,
+      }),
+    });
+
+    if (response.ok) {
+      alert("Facture envoyée avec succès !");
+    } else {
+      const result = await response.json();
+      alert("Erreur : " + JSON.stringify(result));
+    }
+  } catch (error) {
+    alert("Erreur lors de l'envoi de la facture.");
+  }
+}
   async function supprimerAppel(id: string) {
     if (!confirm("Voulez-vous vraiment supprimer cet appel ?")) return;
 
@@ -198,6 +375,7 @@ function genererBonIntervention(call: any) {
   setEditingId(call.id);
   setClientName(call.client_name || "");
   setClientPhone(call.client_phone || "");
+  setClientEmail(call.client_email || "");
   setProblem(call.problem || "");
   setUrgency(call.urgency || "normal");
 
@@ -278,6 +456,18 @@ function afficherDate(date: string) {
         <input type="text" placeholder="Téléphone" value={clientPhone}
           onChange={(e) => setClientPhone(e.target.value)}
           style={{ display: "block", marginBottom: "10px", width: "300px" }} />
+
+          <input
+  type="email"
+  placeholder="Email du client"
+  value={clientEmail}
+  onChange={(e) => setClientEmail(e.target.value)}
+  style={{
+    display: "block",
+    marginBottom: "10px",
+    width: "300px",
+  }}
+/>
 
         <textarea placeholder="Décrivez le problème" value={problem}
           onChange={(e) => setProblem(e.target.value)}
@@ -492,9 +682,14 @@ eventClick={(info) => {
     ✏️ Modifier
   </button>
 
-  <button onClick={() => genererBonIntervention(selectedCall)}>
-    📄 PDF
-  </button>
+ <button onClick={() => genererBonIntervention(selectedCall)}>
+  📄 Générer PDF
+</button>
+
+
+<button onClick={() => envoyerEmail(selectedCall)}>
+  📧 Email
+</button>
 
   {selectedCall.payment_status !== "paye" && (
     <button onClick={() => marquerPaye(selectedCall.id)}>
@@ -660,6 +855,15 @@ eventClick={(info) => {
 
             <button onClick={() => genererBonIntervention(call)}>
            📄 Générer PDF
+           </button>
+
+           
+           <button onClick={() => genererFacture(call)}>
+           🧾 Générer Facture
+           </button>
+
+           <button onClick={() => envoyerFacture(call)}>
+           📧 Envoyer Facture
            </button>
 
             {call.payment_status !== "paye" && (
