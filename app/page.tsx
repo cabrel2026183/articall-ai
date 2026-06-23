@@ -482,6 +482,7 @@ function afficherDate(date: string) {
 
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
 
+      {role === "admin" && (
       <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
         <h3>Nouvel appel</h3>
 
@@ -563,6 +564,7 @@ function afficherDate(date: string) {
   {editingId ? "Modifier l'appel" : "Enregistrer l'appel"}
 </button>
       </div>
+    )}
 
       <div
   style={{
