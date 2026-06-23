@@ -894,21 +894,27 @@ eventClick={(info) => {
            </button>
 
            
-           <button onClick={() => genererFacture(call)}>
-           🧾 Générer Facture
-           </button>
+          {role === "admin" && (
+  <>
+    <button onClick={() => genererFacture(call)}>
+      🧾 Générer Facture
+    </button>
 
-           <button onClick={() => envoyerFacture(call)}>
-           📧 Envoyer Facture
-           </button>
+    <button onClick={() => envoyerFacture(call)}>
+      📧 Envoyer Facture
+    </button>
 
-            {call.payment_status !== "paye" && (
-           <button onClick={() => marquerPaye(call.id)}>
-           ✅ Marquer payé
-           </button>
-            )}
-            <button onClick={() => supprimerAppel(call.id)}>Supprimer</button>
-          </div>
+    {call.payment_status !== "paye" && (
+      <button onClick={() => marquerPaye(call.id)}>
+        ✅ Marquer payé
+      </button>
+    )}
+<button onClick={() => supprimerAppel(call.id)}>
+        Supprimer
+      </button>
+    </>
+  )}
+</div>
 
          <strong>{call.client_name}</strong>
 
