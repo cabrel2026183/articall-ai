@@ -19,6 +19,7 @@ export default function Home() {
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
   const [filtreTechnicien, setFiltreTechnicien] = useState("tous");
   const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState("");
    const ADMIN_EMAIL = "engomecabrel@gmail.com";
 
 
@@ -31,27 +32,42 @@ const isAdmin =
  const [technician, setTechnician] = useState("");
  const [selectedCall, setSelectedCall] = useState<any>(null);
  const [editingId, setEditingId] = useState<string | null>(null);
-  async function chargerAppels() {
-    const {
-  data: { user },
-} = await supabase.auth.getUser();
+  async function chargerAppels(
+  roleActuel?: string,
+  technicienActuel?: string
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-let query = supabase
-  .from("calls")
-  .select("*")
-  .order("created_at", { ascending: false });
+  let query = supabase
+    .from("calls")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-if (user?.email !== "engomecabrel@gmail.com") {
-  query = query.eq("user_id", user?.id);
+  const email = user?.email?.toLowerCase().trim();
+  const roleFinal =
+    email === "engomecabrel@gmail.com"
+      ? "admin"
+      : roleActuel || role;
+
+ if (roleFinal !== "admin") {
+  const nomTechnicien =
+    email === "idriss@articallai.com"
+      ? "Idriss"
+      : technicienActuel;
+
+  query = query.eq("technician", nomTechnicien);
 }
 
-const { data, error } = await query;
-    if (error) {
-      alert(error.message);
-    } else {
-      setCalls(data || []);
-    }
+  const { data, error } = await query;
+
+  if (error) {
+    alert(error.message);
+  } else {
+    setCalls(data || []);
   }
+}
 
   async function ajouterAppel() {
   const {
@@ -407,8 +423,26 @@ async function envoyerFacture(call: any) {
     }
 
     setUser(user);
+    const { data: profile } = await supabase
+  .from("profiles")
+  .select("role, technician_name")
+  .eq("email", user.email?.toLowerCase().trim())
+  .single();
+
+console.log("PROFILE =", profile);
+
+setRole(
+  user.email?.toLowerCase().trim() === "engomecabrel@gmail.com"
+    ? "admin"
+    : profile?.role || "technicien"
+);
     setLoading(false);
-    chargerAppels();
+   chargerAppels(
+  user.email?.toLowerCase().trim() === "engomecabrel@gmail.com"
+    ? "admin"
+    : profile?.role || "technicien",
+  profile?.technician_name
+);
   }
 
   verifierConnexion();
@@ -436,12 +470,14 @@ function afficherDate(date: string) {
 <p>
   Connecté : {user?.email}
 </p>
-{isAdmin ? (
+{role === "admin" ? (
   <p style={{ color: "red", fontWeight: "bold" }}>
     👑 Administrateur
   </p>
 ) : (
-  <p>Compte utilisateur</p>
+  <p style={{ color: "green", fontWeight: "bold" }}>
+    👷 Technicien
+  </p>
 )}
 
       <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
