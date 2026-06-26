@@ -139,6 +139,21 @@ export default function InterventionsList({
 
             {call.technician && <p>👷 Technicien : {call.technician}</p>}
 
+            {call.address && (
+  <p>📍 Adresse : {call.address}</p>
+)}
+
+{call.address && (
+  <a
+    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      call.address
+    )}`}
+    target="_blank"
+  >
+    <button>🗺️ Ouvrir dans Google Maps</button>
+  </a>
+)}
+
             <p>{call.problem}</p>
 
             {call.photo_url && (

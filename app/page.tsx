@@ -16,6 +16,7 @@ export default function Home() {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
+  const [address, setAddress] = useState("");
   const [problem, setProblem] = useState("");
   const [urgency, setUrgency] = useState("normal");
   const [search, setSearch] = useState("");
@@ -105,6 +106,7 @@ if (photo) {
     client_name: clientName,
     client_phone: clientPhone,
     client_email: clientEmail,
+    address,
     problem,
     urgency,
     photo_url: photoUrl,
@@ -134,18 +136,20 @@ if (photo) {
   }
 
   if (error) {
-    alert(error.message);
-  } else {
-    setClientName("");
-    setClientPhone("");
-    setProblem("");
-    setUrgency("normal");
-    setAmount("");
-    setPaymentStatus("non_paye");
-    setInterventionDate("");
-    setEditingId(null);
-    chargerAppels();
-  }
+  alert(error.message);
+} else {
+  setClientName("");
+  setClientPhone("");
+  setClientEmail("");
+  setAddress("");
+  setProblem("");
+  setUrgency("normal");
+  setAmount("");
+  setPaymentStatus("non_paye");
+  setInterventionDate("");
+  setEditingId(null);
+  chargerAppels();
+}
 }
 
   async function marquerRappele(id: string) {
@@ -419,6 +423,7 @@ async function envoyerFacture(call: any) {
   setClientName(call.client_name || "");
   setClientPhone(call.client_phone || "");
   setClientEmail(call.client_email || "");
+  setAddress(call.address || "");
   setProblem(call.problem || "");
   setUrgency(call.urgency || "normal");
 
@@ -499,6 +504,8 @@ function afficherDate(date: string) {
     setClientPhone={setClientPhone}
     clientEmail={clientEmail}
     setClientEmail={setClientEmail}
+    address={address}
+    setAddress={setAddress}
     problem={problem}
     setProblem={setProblem}
     interventionDate={interventionDate}

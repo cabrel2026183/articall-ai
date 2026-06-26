@@ -2,11 +2,16 @@
 
 type ClientFieldsProps = {
   clientName: string;
+
   setClientName: (value: string) => void;
   clientPhone: string;
+
   setClientPhone: (value: string) => void;
   clientEmail: string;
   setClientEmail: (value: string) => void;
+
+  address: string;
+setAddress: (value: string) => void;
 };
 
 export default function ClientFields({
@@ -16,6 +21,8 @@ export default function ClientFields({
   setClientPhone,
   clientEmail,
   setClientEmail,
+  address,
+setAddress,
 }: ClientFieldsProps) {
   return (
     <>
@@ -54,6 +61,17 @@ export default function ClientFields({
           width: "300px",
         }}
       />
+      <input
+  type="text"
+  placeholder="Adresse du client"
+  value={address}
+  onChange={(e) => setAddress(e.target.value)}
+  style={{
+    display: "block",
+    marginBottom: "10px",
+    width: "300px",
+  }}
+/>
     </>
   );
 }

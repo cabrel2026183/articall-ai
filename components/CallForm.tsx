@@ -38,6 +38,9 @@ type CallFormProps = {
   setPhoto: (file: File | null) => void;
 
   ajouterAppel: () => void;
+
+  address: string;
+setAddress: (value: string) => void;
 };
 
 export default function CallForm(props: CallFormProps) {
@@ -50,14 +53,17 @@ export default function CallForm(props: CallFormProps) {
       }}
     >
       <h3>Nouvel appel</h3>
-            <ClientFields
-        clientName={props.clientName}
-        setClientName={props.setClientName}
-        clientPhone={props.clientPhone}
-        setClientPhone={props.setClientPhone}
-        clientEmail={props.clientEmail}
-        setClientEmail={props.setClientEmail}
-      />
+           
+           <ClientFields
+  clientName={props.clientName}
+  setClientName={props.setClientName}
+  clientPhone={props.clientPhone}
+  setClientPhone={props.setClientPhone}
+  clientEmail={props.clientEmail}
+  setClientEmail={props.setClientEmail}
+  address={props.address}
+  setAddress={props.setAddress}
+/>
 
       <InterventionFields
         problem={props.problem}
