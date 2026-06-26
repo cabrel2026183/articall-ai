@@ -1,12 +1,15 @@
 "use client";
 
+import Dashboard from "../components/Dashboard";
+import CallForm from "../components/CallForm";
+import InterventionsList from "../components/InterventionsList";
+import CalendarView from "../components/CalendarView";
+import Filters from "../components/Filters";
+import Header from "../components/Header";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import frLocale from "@fullcalendar/core/locales/fr";
 
 export default function Home() {
   const [calls, setCalls] = useState<any[]>([]);
@@ -20,6 +23,7 @@ export default function Home() {
   const [filtreTechnicien, setFiltreTechnicien] = useState("tous");
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState("");
+ const [photo, setPhoto] = useState<File | null>(null);
    const ADMIN_EMAIL = "engomecabrel@gmail.com";
 
 
@@ -74,6 +78,28 @@ const isAdmin =
     data: { user },
   } = await supabase.auth.getUser();
 
+let photoUrl = null;
+
+if (photo) {
+  const fileName =
+    Date.now() + "-" + photo.name;
+
+  const { error: uploadError } =
+    await supabase.storage
+      .from("intervention-photos")
+      .upload(fileName, photo);
+
+  if (uploadError) {
+    alert(uploadError.message);
+    return;
+  }
+
+  const { data } = supabase.storage
+    .from("intervention-photos")
+    .getPublicUrl(fileName);
+
+  photoUrl = data.publicUrl;
+}
   const appelData = {
     user_id: user?.id,
     client_name: clientName,
@@ -81,6 +107,7 @@ const isAdmin =
     client_email: clientEmail,
     problem,
     urgency,
+    photo_url: photoUrl,
     intervention_date: interventionDate || null,
     amount: amount ? Number(amount) : null,
     payment_status: paymentStatus,
@@ -458,234 +485,53 @@ function afficherDate(date: string) {
 }
   return (
     <main style={{ padding: "40px" }}>
-      <h1>ArtiCall AI</h1>
-<button
-  onClick={async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }}
->
-  Déconnexion
-</button>
-<p>
-  Connecté : {user?.email}
-</p>
-{role === "admin" ? (
-  <p style={{ color: "red", fontWeight: "bold" }}>
-    👑 Administrateur
-  </p>
-) : (
-  <p style={{ color: "green", fontWeight: "bold" }}>
-    👷 Technicien
-  </p>
+      <Header
+  user={user}
+  role={role}
+/>
+
+     {role === "admin" && (
+  <CallForm
+    editingId={editingId}
+    clientName={clientName}
+    setClientName={setClientName}
+    clientPhone={clientPhone}
+    setClientPhone={setClientPhone}
+    clientEmail={clientEmail}
+    setClientEmail={setClientEmail}
+    problem={problem}
+    setProblem={setProblem}
+    interventionDate={interventionDate}
+    setInterventionDate={setInterventionDate}
+    urgency={urgency}
+    setUrgency={setUrgency}
+    amount={amount}
+    setAmount={setAmount}
+    paymentStatus={paymentStatus}
+    setPaymentStatus={setPaymentStatus}
+    technician={technician}
+    setTechnician={setTechnician}
+    setPhoto={setPhoto}
+    ajouterAppel={ajouterAppel}
+  />
 )}
 
-      <p>Ne perdez plus aucun client à cause d'un appel manqué.</p>
+      <Dashboard calls={calls} />
 
-      {role === "admin" && (
-      <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px" }}>
-        <h3>Nouvel appel</h3>
+    <Filters
+  search={search}
+  setSearch={setSearch}
+  filtreUrgence={filtreUrgence}
+  setFiltreUrgence={setFiltreUrgence}
+  filtreTechnicien={filtreTechnicien}
+  setFiltreTechnicien={setFiltreTechnicien}
+/> 
 
-        <input type="text" placeholder="Nom du client" value={clientName}
-          onChange={(e) => setClientName(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", width: "300px" }} />
-
-        <input type="text" placeholder="Téléphone" value={clientPhone}
-          onChange={(e) => setClientPhone(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", width: "300px" }} />
-
-          <input
-  type="email"
-  placeholder="Email du client"
-  value={clientEmail}
-  onChange={(e) => setClientEmail(e.target.value)}
-  style={{
-    display: "block",
-    marginBottom: "10px",
-    width: "300px",
-  }}
+<CalendarView
+  calls={calls}
+  setSelectedCall={setSelectedCall}
 />
 
-        <textarea placeholder="Décrivez le problème" value={problem}
-          onChange={(e) => setProblem(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", width: "300px" }} />
-<input
-  type="datetime-local"
-  value={interventionDate}
-  onChange={(e) => setInterventionDate(e.target.value)}
-  style={{ display: "block", marginBottom: "10px", width: "300px" }}
-/>
-
-<input
-  type="number"
-  placeholder="Montant (€)"
-  value={amount}
-  onChange={(e) => setAmount(e.target.value)}
-  style={{
-    display: "block",
-    marginBottom: "10px",
-    width: "300px",
-  }}
-/>
-<select
-  value={paymentStatus}
-  onChange={(e) => setPaymentStatus(e.target.value)}
-  style={{
-    display: "block",
-    marginBottom: "10px",
-  }}
->
-  <option value="non_paye">💸 Non payé</option>
-  <option value="paye">✅ Payé</option>
-</select>
-
-<select
-  value={technician}
-  onChange={(e) => setTechnician(e.target.value)}
-  style={{
-    display: "block",
-    marginBottom: "10px",
-  }}
->
-  <option value="">Aucun technicien</option>
-  <option value="Issa">Issa</option>
-  <option value="Idriss">Idriss</option>
-  <option value="Dupont">Dupont</option>
-</select>
-
-        <select value={urgency} onChange={(e) => setUrgency(e.target.value)}
-          style={{ display: "block", marginBottom: "10px" }}>
-          <option value="normal">Normal</option>
-          <option value="important">Important</option>
-          <option value="urgent">Urgent</option>
-        </select>
-
-        <button onClick={ajouterAppel}>
-  {editingId ? "Modifier l'appel" : "Enregistrer l'appel"}
-</button>
-      </div>
-    )}
-
-      <div
-  style={{
-    border: "1px solid #ddd",
-    padding: "15px",
-    marginBottom: "20px",
-  }}
->
-  <h3>Tableau de bord</h3>
-<p>
-  💰 Chiffre d'affaires total :{" "}
-  {calls.reduce(
-    (total, call) => total + (call.amount || 0),
-    0
-)} €
-
-</p>
-
-<p>
-  💰 CA encaissé :{" "}
-  {calls
-    .filter((call) => call.payment_status === "paye")
-    .reduce((total, call) => total + (call.amount || 0), 0)}
-  {" "}€
-</p>
-<p>
-  ⏳ Reste à encaisser :{" "}
-  {calls
-    .filter((call) => call.payment_status !== "paye")
-    .reduce((total, call) => total + (call.amount || 0), 0)}
-  {" "}€
-</p>
-  <p>Nombre total d'appels : {calls.length}</p>
-
-  <p>🔴 Urgents : {calls.filter((call) => call.urgency === "urgent").length}</p>
-
-  <p>🟠 Importants : {calls.filter((call) => call.urgency === "important").length}</p>
-
-  <p>🟢 Normaux : {calls.filter((call) => call.urgency === "normal").length}</p>
-
-  <p>Nouveaux : {calls.filter((call) => call.status === "nouveau").length}</p>
-
-  <p>Rappelés : {calls.filter((call) => call.status === "rappelé").length}</p>
-
-  <p>Terminés : {calls.filter((call) => call.status === "termine").length}</p>
-</div>
-<input
-  type="text"
-  placeholder="Rechercher par nom ou téléphone..."
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
-  style={{
-    width: "300px",
-    padding: "8px",
-    marginBottom: "20px",
-  }}
-/>
-<div style={{ marginBottom: "15px" }}>
- 
-
-  <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-  <button onClick={() => setFiltreUrgence("tous")}>
-    Tous
-  </button>
-
-  <button onClick={() => setFiltreUrgence("urgent")}>
-    🔴 Urgents
-  </button>
-
-  <button onClick={() => setFiltreUrgence("important")}>
-    🟠 Importants
-  </button>
-
-  <button onClick={() => setFiltreUrgence("normal")}>
-    🟢 Normaux
-  </button>
-</div>
-
-<select
-  value={filtreTechnicien}
-  onChange={(e) => setFiltreTechnicien(e.target.value)}
-  style={{
-    marginBottom: "15px",
-    padding: "8px",
-  }}
->
-  <option value="tous">Tous les techniciens</option>
-  <option value="Issa">Issa</option>
-  <option value="Idriss">Idriss</option>
-  <option value="Dupont">Dupont</option>
-</select>
-
-</div>
-<h2>📅 Calendrier des interventions</h2>
-
-<FullCalendar
-  plugins={[dayGridPlugin]}
-  initialView="dayGridMonth"
-  locale={frLocale}
-  height="auto"
-  eventDisplay="block"
- events={calls
-  .filter((call) => call.intervention_date)
-  .map((call) => ({
-    title: `${call.client_name}`,
-    date: call.intervention_date,
-    color:
-      call.urgency === "urgent"
-        ? "red"
-        : call.urgency === "important"
-        ? "orange"
-        : "green",
-    extendedProps: {
-      call,
-    },
-  }))}
-eventClick={(info) => {
-  setSelectedCall(info.event.extendedProps.call);
-}}
-
-/>
 {selectedCall && (
   <div
     style={{
@@ -838,140 +684,24 @@ eventClick={(info) => {
       </p>
     </div>
   ))}
-      <h2>Appels reçus</h2>
-      <p>🟡 Nouveau → 🟢 Rappelé → 🔵 Terminé</p>
 
-      {calls
-  .filter(
-    (call) =>
-      (call.client_name
-        ?.toLowerCase()
-        .includes(search.toLowerCase()) ||
-        call.client_phone?.includes(search)) &&
+     <InterventionsList
+  calls={calls}
+  search={search}
+  filtreUrgence={filtreUrgence}
+  filtreTechnicien={filtreTechnicien}
+  role={role}
+  afficherDate={afficherDate}
+  marquerRappele={marquerRappele}
+  marquerTermine={marquerTermine}
+  modifierAppel={modifierAppel}
+  genererBonIntervention={genererBonIntervention}
+  genererFacture={genererFacture}
+  envoyerFacture={envoyerFacture}
+  marquerPaye={marquerPaye}
+  supprimerAppel={supprimerAppel}
+/> 
 
-      (filtreUrgence === "tous" ||
-        call.urgency === filtreUrgence) &&
-
-      (filtreTechnicien === "tous" ||
-        call.technician === filtreTechnicien)
-  )
-  .map((call) => (
-        <div
-          key={call.id}
-         style={{
-  border:
-    call.urgency === "urgent"
-      ? "2px solid red"
-      : call.urgency === "important"
-      ? "2px solid orange"
-      : "2px solid green",
-
-  backgroundColor:
-    call.urgency === "urgent"
-      ? "#ffe5e5"
-      : call.urgency === "important"
-      ? "#fff4e5"
-      : "#eaffea",
-
-  padding: "10px",
-  marginTop: "10px",
-  borderRadius: "8px",
-}}
-        >
-          <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-            {call.status === "nouveau" && (
-              <button onClick={() => marquerRappele(call.id)}>Rappelé</button>
-            )}
-
-            {call.status === "rappelé" && (
-              <button onClick={() => marquerTermine(call.id)}>Terminé</button>
-            )}
-
-            <button onClick={() => modifierAppel(call)}>
-            Modifier
-            </button>
-
-            <button onClick={() => genererBonIntervention(call)}>
-           📄 Générer PDF
-           </button>
-
-           
-          {role === "admin" && (
-  <>
-    <button onClick={() => genererFacture(call)}>
-      🧾 Générer Facture
-    </button>
-
-    <button onClick={() => envoyerFacture(call)}>
-      📧 Envoyer Facture
-    </button>
-
-    {call.payment_status !== "paye" && (
-      <button onClick={() => marquerPaye(call.id)}>
-        ✅ Marquer payé
-      </button>
-    )}
-<button onClick={() => supprimerAppel(call.id)}>
-        Supprimer
-      </button>
-    </>
-  )}
-</div>
-
-         <strong>{call.client_name}</strong>
-
-<p>{call.client_phone}</p>
-
-<a href={`tel:${call.client_phone}`}>
-  <button>📞 Appeler</button>
-</a>
-
-<p>📅 {afficherDate(call.created_at)}</p>
-{call.intervention_date && (
-  <p>
-    🛠️ Intervention :
-    {" "}
-    {new Date(call.intervention_date).toLocaleString("fr-FR", {
-  dateStyle: "short",
-  timeStyle: "short",
-})}
-  </p>
-)}
-
-{call.amount !== null && call.amount !== undefined && (
-  <p>
-    💰 Montant : {call.amount} €
-  </p>
-)}
-<p>
-  Paiement :
-  {call.payment_status === "paye"
-    ? " ✅ Payé"
-    : " 💸 Non payé"}
-</p>
-
-{call.technician && (
-  <p>
-    👷 Technicien : {call.technician}
-  </p>
-)}
-
-<p>{call.problem}</p>
-          <p>
-            Urgence :
-            {call.urgency === "normal" && " 🟢 Normal"}
-            {call.urgency === "important" && " 🟠 Important"}
-            {call.urgency === "urgent" && " 🔴 Urgent"}
-          </p>
-
-          <p>
-            Statut :
-            {call.status === "nouveau" && " 🟡 Nouveau"}
-            {call.status === "rappelé" && " 🟢 Rappelé"}
-            {call.status === "termine" && " 🔵 Terminé"}
-          </p>
-        </div>
-      ))}
-    </main>
-  );
+</main>
+);
 }
