@@ -24,9 +24,28 @@ export default function Header({
         Déconnexion
       </button>
 
-      <p>
-        Connecté : {user?.email}
-      </p>
+     <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "15px",
+    flexWrap: "wrap",
+  }}
+>
+  <a href="/"><button>🏠 Dashboard</button></a>
+
+  <a href="/clients"><button>👥 Clients</button></a>
+
+  <a href="/interventions"><button>📋 Interventions</button></a>
+
+  <a href="/facturation"><button>💰 Facturation</button></a>
+
+  <a href="/statistiques"><button>📊 Statistiques</button></a>
+</div>
+
+<p style={{ marginTop: "10px" }}>
+  Connecté : {user?.email}
+</p>
 
       {role === "admin" ? (
         <p

@@ -1,11 +1,14 @@
 "use client";
 
 import Dashboard from "../components/Dashboard";
+import InterventionsTable from "../components/InterventionsTable";
 import CallForm from "../components/CallForm";
+import MainLayout from "../components/MainLayout";
 import InterventionsList from "../components/InterventionsList";
 import CalendarView from "../components/CalendarView";
 import Filters from "../components/Filters";
-import Header from "../components/Header";
+import InterventionDetails from "../components/InterventionDetails";
+import SignaturePad from "../components/SignaturePad";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import jsPDF from "jspdf";
@@ -36,6 +39,7 @@ const isAdmin =
  const [paymentStatus, setPaymentStatus] = useState("non_paye");
  const [technician, setTechnician] = useState("");
  const [selectedCall, setSelectedCall] = useState<any>(null);
+ const [signature, setSignature] = useState("");
  const [editingId, setEditingId] = useState<string | null>(null);
   async function chargerAppels(
   roleActuel?: string,
@@ -203,7 +207,18 @@ async function marquerPaye(id: string) {
   }
 }
 
-function genererBonIntervention(call: any) {
+async function imageUrlToBase64(url: string): Promise<string> {
+  const response = await fetch(url);
+  const blob = await response.blob();
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function genererBonIntervention(call: any) {
   const doc = new jsPDF();
 
   doc.setFontSize(20);
@@ -249,9 +264,40 @@ function genererBonIntervention(call: any) {
     20,
     280
   );
+let positionY = (doc as any).lastAutoTable?.finalY || 180;
+
+if (call.photo_url) {
+  const photoBase64 = await imageUrlToBase64(call.photo_url);
+
+  doc.setFontSize(12);
+  doc.text("Photo de l'intervention :", 20, positionY + 15);
+
+  doc.addImage(photoBase64, "JPEG", 20, positionY + 20, 80, 60);
+
+  positionY = positionY + 90;
+}
+
+if (call.signature_url) {
+  doc.setFontSize(12);
+  doc.text("Signature du client :", 20, positionY + 15);
+
+  doc.addImage(
+    call.signature_url,
+    "PNG",
+    20,
+    positionY + 20,
+    60,
+    30
+  );
+}
+
+console.log(call.photo_url);
+
+alert("PHOTO URL = " + call.photo_url);
 
   doc.save(`bon-intervention-${call.client_name || "client"}.pdf`);
 }
+
 function genererFacture(call: any) {
   const doc = new jsPDF();
 
@@ -325,6 +371,22 @@ async function envoyerEmail(call: any) {
         ["Technicien", call.technician || ""],
       ],
     });
+
+    if (call.signature_url) {
+  const finalY = (doc as any).lastAutoTable?.finalY || 180;
+
+  doc.setFontSize(12);
+  doc.text("Signature du client :", 20, finalY + 15);
+
+  doc.addImage(
+    call.signature_url,
+    "PNG",
+    20,
+    finalY + 20,
+    60,
+    30
+  );
+}
 
     const pdfBase64 = doc.output("datauristring").split(",")[1];
 
@@ -489,11 +551,11 @@ function afficherDate(date: string) {
   });
 }
   return (
-    <main style={{ padding: "40px" }}>
-      <Header
+    <MainLayout
   user={user}
   role={role}
-/>
+>
+     
 
      {role === "admin" && (
   <CallForm
@@ -532,183 +594,35 @@ function afficherDate(date: string) {
   setFiltreUrgence={setFiltreUrgence}
   filtreTechnicien={filtreTechnicien}
   setFiltreTechnicien={setFiltreTechnicien}
-/> 
+/>
+
+<InterventionsTable
+  calls={calls}
+  afficherDate={afficherDate}
+  setSelectedCall={setSelectedCall}
+/>
 
 <CalendarView
   calls={calls}
   setSelectedCall={setSelectedCall}
 />
 
-{selectedCall && (
-  <div
-    style={{
-      border: "2px solid #333",
-      padding: "15px",
-      marginBottom: "20px",
-      borderRadius: "10px",
-      backgroundColor: "#f5f5f5",
-    }}
-  >
-    <h3>{selectedCall.client_name}</h3>
-
-    <p>📞 {selectedCall.client_phone}</p>
-
-    <p>🛠️ {selectedCall.problem}</p>
-
-    {selectedCall.technician && (
-  <p>
-    👷 {selectedCall.technician}
-  </p>
-)}
-
-{selectedCall.amount !== null &&
- selectedCall.amount !== undefined && (
-  <p>
-    💰 {selectedCall.amount} €
-  </p>
-)}
-
-<div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-  <button onClick={() => modifierAppel(selectedCall)}>
-    ✏️ Modifier
-  </button>
-
- <button onClick={() => genererBonIntervention(selectedCall)}>
-  📄 Générer PDF
-</button>
-
-
-<button onClick={() => envoyerEmail(selectedCall)}>
-  📧 Email
-</button>
-
-  {selectedCall.payment_status !== "paye" && (
-    <button onClick={() => marquerPaye(selectedCall.id)}>
-      ✅ Marquer payé
-    </button>
-  )}
-
-  <button onClick={() => setSelectedCall(null)}>
-    Fermer
-  </button>
-</div>
-
-  </div>
-)}
-<h2>🚨 Interventions du jour</h2>
-
-{calls
-  .filter((call) => {
-    if (!call.intervention_date) return false;
-
-    const today = new Date();
-    const intervention = new Date(call.intervention_date);
-
-    return (
-      intervention.getDate() === today.getDate() &&
-      intervention.getMonth() === today.getMonth() &&
-      intervention.getFullYear() === today.getFullYear()
-    );
-  })
-  .map((call) => (
-    <div key={`today-${call.id}`}>
-      <p>
-        🛠️ {call.client_name} -{" "}
-        {new Date(call.intervention_date).toLocaleTimeString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </p>
-    </div>
-  ))}
- <h2>⚠️ Interventions en retard</h2>
-<p>
-  Une intervention est en retard si l'heure prévue est passée et que le statut n'est pas terminé.
-</p>
-
-{calls
-  .filter((call) => {
-    if (!call.intervention_date) return false;
-
-    const intervention = new Date(call.intervention_date);
-    const today = new Date();
-
-    const estAujourdHui =
-      intervention.getDate() === today.getDate() &&
-      intervention.getMonth() === today.getMonth() &&
-      intervention.getFullYear() === today.getFullYear();
-
-    return (
-      !estAujourdHui &&
-      intervention < today &&
-      call.status !== "termine"
-    );
-  })
-  .map((call) => (
-    <div key={`late-${call.id}`}>
-      <p>
-        🛠️ {call.client_name} -{" "}
-        {new Date(call.intervention_date).toLocaleString("fr-FR", {
-          dateStyle: "short",
-          timeStyle: "short",
-        })}
-      </p>
-    </div>
-  ))}
-<h2>📅 Interventions à venir</h2>
-{calls
-  .filter((call) => {
-  if (!call.intervention_date) return false;
-
-  const intervention = new Date(call.intervention_date);
-  const now = new Date();
-
-  const estAujourdHui =
-    intervention.getDate() === now.getDate() &&
-    intervention.getMonth() === now.getMonth() &&
-    intervention.getFullYear() === now.getFullYear();
-
-  return (
-    !estAujourdHui &&
-    intervention > now &&
-    call.status !== "termine"
-  );
-})
-  .sort(
-    (a, b) =>
-      new Date(a.intervention_date).getTime() -
-      new Date(b.intervention_date).getTime()
-  )
-  .map((call) => (
-    <div key={call.id}>
-      <p>
-        🛠️ {call.client_name} -
-        {" "}
-        {new Date(call.intervention_date).toLocaleString("fr-FR", {
-          dateStyle: "short",
-          timeStyle: "short",
-        })}
-      </p>
-    </div>
-  ))}
-
-     <InterventionsList
-  calls={calls}
-  search={search}
-  filtreUrgence={filtreUrgence}
-  filtreTechnicien={filtreTechnicien}
+     <InterventionDetails
+  call={selectedCall}
   role={role}
   afficherDate={afficherDate}
-  marquerRappele={marquerRappele}
-  marquerTermine={marquerTermine}
   modifierAppel={modifierAppel}
   genererBonIntervention={genererBonIntervention}
   genererFacture={genererFacture}
   envoyerFacture={envoyerFacture}
+  envoyerEmail={envoyerEmail}
   marquerPaye={marquerPaye}
   supprimerAppel={supprimerAppel}
-/> 
+  marquerRappele={marquerRappele}
+  marquerTermine={marquerTermine}
+  setSelectedCall={setSelectedCall}
+/>
 
-</main>
+</MainLayout>
 );
 }

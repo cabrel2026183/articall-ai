@@ -137,7 +137,9 @@ export default function InterventionsList({
               {call.payment_status === "paye" ? " ✅ Payé" : " 💸 Non payé"}
             </p>
 
-            {call.technician && <p>👷 Technicien : {call.technician}</p>}
+            {call.technician && call.technician !== "vide" && (
+  <p>👷 Technicien : {call.technician}</p>
+)}
 
             {call.address && (
   <p>📍 Adresse : {call.address}</p>
