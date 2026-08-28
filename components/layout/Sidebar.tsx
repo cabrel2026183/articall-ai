@@ -115,6 +115,13 @@ const isTechnician = role === "technicien";
   {isAdmin && (
     <>
       <Link
+        href="/planning"
+        style={linkStyle(routeActive("/planning"))}
+      >
+        🗓️ Planning technicien
+      </Link>
+
+      <Link
         href="/clients"
         style={linkStyle(routeActive("/clients"))}
       >
