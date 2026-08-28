@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import type { Call } from "../../lib/types";
 
 type NotificationBellProps = {
@@ -9,12 +10,92 @@ type NotificationBellProps = {
 
 export default function NotificationBell({ calls = [] }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
+  const [callsAvecFactureImpayee, setCallsAvecFactureImpayee] = useState<
+    Set<string>
+  >(new Set());
+
+  useEffect(() => {
+    chargerFacturesImpayees();
+  }, [calls]);
+
+  async function chargerFacturesImpayees() {
+    const callIds = calls.map((call) => call.id);
+
+    if (callIds.length === 0) {
+      setCallsAvecFactureImpayee(new Set());
+      return;
+    }
+
+    const { data: quotesData, error: quotesError } = await supabase
+      .from("quotes")
+      .select("id, call_id")
+      .in("call_id", callIds);
+
+    if (quotesError) {
+      console.error(
+        "Erreur chargement devis liés :",
+        quotesError
+      );
+      setCallsAvecFactureImpayee(new Set());
+      return;
+    }
+
+    const callIdByQuoteId = new Map<string, string>();
+
+    (
+      quotesData as { id: string; call_id: string | null }[] || []
+    ).forEach((quote) => {
+      if (quote.call_id) {
+        callIdByQuoteId.set(quote.id, quote.call_id);
+      }
+    });
+
+    const quoteIds = Array.from(callIdByQuoteId.keys());
+
+    if (quoteIds.length === 0) {
+      setCallsAvecFactureImpayee(new Set());
+      return;
+    }
+
+    const { data: invoicesData, error: invoicesError } = await supabase
+      .from("invoices")
+      .select("quote_id, status")
+      .in("quote_id", quoteIds)
+      .neq("status", "paye");
+
+    if (invoicesError) {
+      console.error(
+        "Erreur chargement factures impayées :",
+        invoicesError
+      );
+      setCallsAvecFactureImpayee(new Set());
+      return;
+    }
+
+    const resultat = new Set<string>();
+
+    (
+      invoicesData as { quote_id: string | null; status: string | null }[] ||
+      []
+    ).forEach((invoice) => {
+      if (!invoice.quote_id) return;
+
+      const callId = callIdByQuoteId.get(invoice.quote_id);
+
+      if (callId) {
+        resultat.add(callId);
+      }
+    });
+
+    setCallsAvecFactureImpayee(resultat);
+  }
 
   const urgences = calls.filter(
     (call) => call.urgency === "urgent" && call.status !== "termine"
   );
-  const impayes = calls.filter(
-    (call) => call.payment_status !== "paye"
+
+  const impayes = calls.filter((call) =>
+    callsAvecFactureImpayee.has(call.id)
   );
 
   const interventionsJour = calls.filter((call) => {

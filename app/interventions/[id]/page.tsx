@@ -41,6 +41,8 @@ export default function InterventionPage() {
     useState(false);
   const [telechargement, setTelechargement] =
     useState(false);
+  const [quoteLieeId, setQuoteLieeId] = useState<string | null>(null);
+  const [factureLieeId, setFactureLieeId] = useState<string | null>(null);
 
   useEffect(() => {
     async function chargerPage() {
@@ -83,7 +85,49 @@ const roleFinal = profile?.role || "technicien";
       }
 
       setCall(intervention || null);
+
+      if (intervention) {
+        await chargerFactureLiee(intervention.id);
+      }
+
       setLoading(false);
+    }
+
+    async function chargerFactureLiee(callId: string) {
+      const { data: quoteData, error: quoteError } = await supabase
+        .from("quotes")
+        .select("id")
+        .eq("call_id", callId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ id: string }>();
+
+      if (quoteError || !quoteData) {
+        setQuoteLieeId(null);
+        setFactureLieeId(null);
+        return;
+      }
+
+      setQuoteLieeId(quoteData.id);
+
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from("invoices")
+        .select("id")
+        .eq("quote_id", quoteData.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ id: string }>();
+
+      if (invoiceError) {
+        console.error(
+          "Erreur chargement facture liée :",
+          invoiceError
+        );
+        setFactureLieeId(null);
+        return;
+      }
+
+      setFactureLieeId(invoiceData?.id || null);
     }
 
     if (params.id) {
@@ -331,22 +375,57 @@ const roleFinal = profile?.role || "technicien";
               📄 Créer un devis
             </Link>
 
-            <Link
-              href={`/factures/${call.id}`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "11px 15px",
-                borderRadius: "10px",
-                backgroundColor: "#0f172a",
-                color: "white",
-                textDecoration: "none",
-                fontWeight: 700,
-              }}
-            >
-              🧾 Facture
-            </Link>
+            {factureLieeId ? (
+              <Link
+                href={`/factures/${factureLieeId}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "11px 15px",
+                  borderRadius: "10px",
+                  backgroundColor: "#0f172a",
+                  color: "white",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                }}
+              >
+                🧾 Facture
+              </Link>
+            ) : quoteLieeId ? (
+              <Link
+                href={`/devis/${quoteLieeId}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "11px 15px",
+                  borderRadius: "10px",
+                  backgroundColor: "#0f172a",
+                  color: "white",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                }}
+              >
+                🧾 Facture
+              </Link>
+            ) : (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "11px 15px",
+                  borderRadius: "10px",
+                  backgroundColor: "#e2e8f0",
+                  color: "#94a3b8",
+                  fontWeight: 700,
+                }}
+                title="Créez d'abord un devis pour cette intervention"
+              >
+                🧾 Facture
+              </span>
+            )}
           </div>
         </div>
 

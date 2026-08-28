@@ -5,14 +5,34 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import MainLayout from "../../../components/MainLayout";
 import { supabase } from "../../../lib/supabase";
+import type { Call, Quote, Invoice } from "../../../lib/types";
+
+type QuoteResume = Pick<
+  Quote,
+  "id" | "quote_number" | "total" | "created_at"
+>;
+
+type FactureResume = Pick<
+  Invoice,
+  "id" | "invoice_number" | "total_amount" | "status" | "created_at"
+>;
+
+type FactureLiee = {
+  total_amount: number | null;
+  status: string | null;
+};
 
 export default function ClientDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [client, setClient] = useState<any>(null);
-  const [interventions, setInterventions] = useState<any[]>([]);
-  const [devis, setDevis] = useState<any[]>([]);
+  const [client, setClient] = useState<Call | null>(null);
+  const [interventions, setInterventions] = useState<Call[]>([]);
+  const [devis, setDevis] = useState<QuoteResume[]>([]);
+  const [factures, setFactures] = useState<FactureResume[]>([]);
+  const [facturesParIntervention, setFacturesParIntervention] = useState<
+    Map<string, FactureLiee>
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -33,7 +53,7 @@ export default function ClientDetailsPage() {
           .from("calls")
           .select("*")
           .eq("id", params.id)
-          .maybeSingle();
+          .maybeSingle<Call>();
 
       if (referenceError) {
         setMessage(referenceError.message);
@@ -77,7 +97,7 @@ export default function ClientDetailsPage() {
       }
 
       const { data: history, error: historyError } =
-  await query;
+  await query.returns<Call[]>();
 
 if (historyError) {
   setMessage(historyError.message);
@@ -111,7 +131,7 @@ if (referenceCall.client_phone) {
 const {
   data: devisClient,
   error: devisError,
-} = await devisQuery;
+} = await devisQuery.returns<QuoteResume[]>();
 
 if (devisError) {
   console.error(
@@ -120,6 +140,104 @@ if (devisError) {
   );
 } else {
   setDevis(devisClient || []);
+}
+
+// CHARGEMENT DES VRAIES FACTURES DU CLIENT
+let facturesQuery = supabase
+  .from("invoices")
+  .select("id, invoice_number, total_amount, status, created_at")
+  .order("created_at", { ascending: false });
+
+if (referenceCall.client_phone) {
+  facturesQuery = facturesQuery.eq(
+    "customer_phone",
+    referenceCall.client_phone
+  );
+} else if (referenceCall.client_email) {
+  facturesQuery = facturesQuery.eq(
+    "customer_email",
+    referenceCall.client_email
+  );
+} else {
+  facturesQuery = facturesQuery.eq(
+    "customer_name",
+    referenceCall.client_name
+  );
+}
+
+const {
+  data: facturesClient,
+  error: facturesError,
+} = await facturesQuery.returns<FactureResume[]>();
+
+if (facturesError) {
+  console.error(
+    "Erreur factures client :",
+    facturesError
+  );
+} else {
+  setFactures(facturesClient || []);
+}
+
+// LIER CHAQUE INTERVENTION À SA FACTURE (pour la colonne Montant/Paiement
+// de l'historique, en dessous)
+const callIds = (history || []).map((item) => item.id);
+
+if (callIds.length > 0) {
+  const { data: quotesLies } = await supabase
+    .from("quotes")
+    .select("id, call_id")
+    .in("call_id", callIds)
+    .order("created_at", { ascending: false });
+
+  const quoteIdByCallId = new Map<string, string>();
+
+  (
+    quotesLies as { id: string; call_id: string | null }[] || []
+  ).forEach((quote) => {
+    if (quote.call_id && !quoteIdByCallId.has(quote.call_id)) {
+      quoteIdByCallId.set(quote.call_id, quote.id);
+    }
+  });
+
+  const quoteIds = Array.from(quoteIdByCallId.values());
+
+  if (quoteIds.length > 0) {
+    const { data: invoicesLiees } = await supabase
+      .from("invoices")
+      .select("quote_id, total_amount, status")
+      .in("quote_id", quoteIds)
+      .order("created_at", { ascending: false });
+
+    const invoiceByQuoteId = new Map<string, FactureLiee>();
+
+    (
+      invoicesLiees as {
+        quote_id: string | null;
+        total_amount: number | null;
+        status: string | null;
+      }[] || []
+    ).forEach((invoice) => {
+      if (invoice.quote_id && !invoiceByQuoteId.has(invoice.quote_id)) {
+        invoiceByQuoteId.set(invoice.quote_id, {
+          total_amount: invoice.total_amount,
+          status: invoice.status,
+        });
+      }
+    });
+
+    const resultat = new Map<string, FactureLiee>();
+
+    quoteIdByCallId.forEach((quoteId, callId) => {
+      const facture = invoiceByQuoteId.get(quoteId);
+
+      if (facture) {
+        resultat.set(callId, facture);
+      }
+    });
+
+    setFacturesParIntervention(resultat);
+  }
 }
 
 setLoading(false);
@@ -131,31 +249,25 @@ setLoading(false);
   }, [params.id]);
 
   const totalFacture = useMemo(() => {
-    return interventions.reduce(
-      (total, item) =>
-        total + Number(item.amount || 0),
+    return factures.reduce(
+      (total, facture) =>
+        total + Number(facture.total_amount || 0),
       0
     );
-  }, [interventions]);
+  }, [factures]);
 
   const totalEncaisse = useMemo(() => {
-    return interventions
+    return factures
       .filter(
-        (item) =>
-          item.payment_status === "paye"
+        (facture) =>
+          facture.status === "paye"
       )
       .reduce(
-        (total, item) =>
-          total + Number(item.amount || 0),
+        (total, facture) =>
+          total + Number(facture.total_amount || 0),
         0
       );
-  }, [interventions]);
-
-  const factures = useMemo(() => {
-  return interventions.filter(
-    (item) => item.invoice_number
-  );
-}, [interventions]);
+  }, [factures]);
 
   async function enregistrerModifications() {
     if (!client) return;
@@ -209,16 +321,20 @@ setLoading(false);
       return;
     }
 
-    setClient((current: any) => ({
-      ...current,
-      client_name: clientName.trim(),
-      client_phone:
-        clientPhone.trim() || null,
-      client_email:
-        clientEmail.trim() || null,
-      address:
-        address.trim() || null,
-    }));
+    setClient((current) =>
+      current
+        ? {
+            ...current,
+            client_name: clientName.trim(),
+            client_phone:
+              clientPhone.trim() || null,
+            client_email:
+              clientEmail.trim() || null,
+            address:
+              address.trim() || null,
+          }
+        : current
+    );
 
     setInterventions((current) =>
       current.map((item) => ({
@@ -618,7 +734,13 @@ setLoading(false);
 
               <tbody>
                 {interventions.map(
-                  (intervention) => (
+                  (intervention) => {
+                    const factureLiee =
+                      facturesParIntervention.get(
+                        intervention.id
+                      );
+
+                    return (
                     <tr
                       key={intervention.id}
                     >
@@ -635,19 +757,23 @@ setLoading(false);
                       </td>
 
                       <td style={cell}>
-                        {formatCurrency(
-                          Number(
-                            intervention.amount ||
-                              0
-                          )
-                        )}
+                        {factureLiee
+                          ? formatCurrency(
+                              Number(
+                                factureLiee.total_amount ||
+                                  0
+                              )
+                            )
+                          : "-"}
                       </td>
 
                       <td style={cell}>
-                        {intervention.payment_status ===
-                        "paye"
-                          ? "✅ Payé"
-                          : "💸 Non payé"}
+                        {!factureLiee
+                          ? "-"
+                          : factureLiee.status ===
+                            "paye"
+                            ? "✅ Payé"
+                            : "💸 Non payé"}
                       </td>
 
                       <td style={cell}>
@@ -665,7 +791,8 @@ setLoading(false);
                         </Link>
                       </td>
                     </tr>
-                  )
+                    );
+                  }
                 )}
               </tbody>
             </table>
@@ -790,7 +917,7 @@ setLoading(false);
       >
         <div>
           <strong>
-            {facture.invoice_number}
+            {facture.invoice_number || "Facture"}
           </strong>
 
           <div
@@ -800,10 +927,10 @@ setLoading(false);
             }}
           >
             {formatCurrency(
-              Number(facture.amount || 0)
+              Number(facture.total_amount || 0)
             )}
             {" • "}
-            {facture.payment_status === "paye"
+            {facture.status === "paye"
               ? "✅ Payée"
               : "⏳ À payer"}
           </div>

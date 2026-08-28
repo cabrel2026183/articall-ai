@@ -5,6 +5,7 @@ import InterventionFields from "./InterventionFields";
 import DynamicCallWorkflow from "./call/DynamicCallWorkflow";
 import AvailabilityPicker from "./intervention/AvailabilityPicker";
 import TechnicianFields from "./TechnicianFields";
+import type { Call } from "../lib/types";
 
 type CallFormProps = {
   editingId: string | null;
@@ -41,12 +42,6 @@ setCountry: (value: string) => void;
   urgency: string;
   setUrgency: (value: string) => void;
 
-  amount: string;
-  setAmount: (value: string) => void;
-
-  paymentStatus: string;
-  setPaymentStatus: (value: string) => void;
-
   technician: string;
   setTechnician: (value: string) => void;
 
@@ -70,7 +65,22 @@ setPropertyType: (value: string) => void;
 propertyTypeOther: string;
 setPropertyTypeOther: (value: string) => void;
 
-  clientReconnu: any;
+  clientReconnu: Pick<
+    Call,
+    | "id"
+    | "client_name"
+    | "client_phone"
+    | "client_email"
+    | "address"
+    | "street_number"
+    | "street_name"
+    | "postal_code"
+    | "city"
+    | "country"
+    | "property_type"
+    | "property_type_other"
+    | "created_at"
+  > | null;
 rechercheClient: boolean;
 };
 

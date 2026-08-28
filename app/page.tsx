@@ -64,8 +64,6 @@ const [workflowSummary, setWorkflowSummary] = useState("");
    
   const [loading, setLoading] = useState(true);
   const [interventionDate, setInterventionDate] = useState("");
- const [amount, setAmount] = useState("");
- const [paymentStatus, setPaymentStatus] = useState("non_paye");
  const [technician, setTechnician] = useState("");
   const [signature, setSignature] = useState("");
  const [editingId, setEditingId] = useState<string | null>(null);
@@ -324,8 +322,6 @@ country: country || "France",
     urgency,
     photo_url: photoUrl,
     intervention_date: interventionDate || null,
-    amount: amount ? Number(amount) : null,
-    payment_status: paymentStatus,
     technician: technician,
     summary: problem,
     status: "nouveau",
@@ -370,8 +366,6 @@ setCity("");
 setCountry("France");
   setProblem("");
   setUrgency("normal");
-  setAmount("");
-  setPaymentStatus("non_paye");
   setInterventionDate("");
   setEditingId(null);
   chargerAppels();
@@ -472,10 +466,6 @@ setCountry={setCountry}
     setInterventionDate={setInterventionDate}
     urgency={urgency}
     setUrgency={setUrgency}
-    amount={amount}
-    setAmount={setAmount}
-    paymentStatus={paymentStatus}
-    setPaymentStatus={setPaymentStatus}
     technician={technician}
     setTechnician={setTechnician}
     setPhoto={setPhoto}
