@@ -30,17 +30,7 @@ export default function InterventionFields({
         }}
       />
 
-      <input
-        type="datetime-local"
-        value={interventionDate}
-        onChange={(e) => setInterventionDate(e.target.value)}
-        style={{
-          display: "block",
-          marginBottom: "10px",
-          width: "300px",
-        }}
-      />
-
+      
       <select
         value={urgency}
         onChange={(e) => setUrgency(e.target.value)}

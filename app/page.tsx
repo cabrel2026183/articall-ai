@@ -3,45 +3,182 @@
 import Dashboard from "../components/Dashboard";
 import InterventionsTable from "../components/InterventionsTable";
 import CallForm from "../components/CallForm";
+import { useSearchParams } from "next/navigation";
 import MainLayout from "../components/MainLayout";
-import InterventionsList from "../components/InterventionsList";
+import TechnicianDashboard from "../components/technician/TechnicianDashboard";
 import CalendarView from "../components/CalendarView";
 import Filters from "../components/Filters";
-import InterventionDetails from "../components/InterventionDetails";
-import SignaturePad from "../components/SignaturePad";
-import { useEffect, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { supabase } from "../lib/supabase";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type { Call, AuthUser } from "../lib/types";
 
-export default function Home() {
-  const [calls, setCalls] = useState<any[]>([]);
+function HomeContent() {
+  const searchParams = useSearchParams();
+const clientCallId = searchParams.get("callId");
+  const [calls, setCalls] = useState<Call[]>([]);
   const [clientName, setClientName] = useState("");
+  const [clientReconnu, setClientReconnu] = useState<Pick<
+    Call,
+    | "id"
+    | "client_name"
+    | "client_phone"
+    | "client_email"
+    | "address"
+    | "street_number"
+    | "street_name"
+    | "postal_code"
+    | "city"
+    | "country"
+    | "property_type"
+    | "property_type_other"
+    | "created_at"
+  > | null>(null);
+const [rechercheClient, setRechercheClient] = useState(false);
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [streetNumber, setStreetNumber] = useState("");
+const [streetName, setStreetName] = useState("");
+const [postalCode, setPostalCode] = useState("");
+const [city, setCity] = useState("");
+const [country, setCountry] = useState("France");
   const [problem, setProblem] = useState("");
   const [urgency, setUrgency] = useState("normal");
+  const [requiredSkill, setRequiredSkill] = useState("");
+const [recommendedMaterials, setRecommendedMaterials] = useState<string[]>([]);
+const [workflowSummary, setWorkflowSummary] = useState("");
   const [search, setSearch] = useState("");
   const [filtreUrgence, setFiltreUrgence] = useState("tous");
   const [filtreTechnicien, setFiltreTechnicien] = useState("tous");
-  const [user, setUser] = useState<any>(null);
+  const [technicianName, setTechnicianName] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [propertyTypeOther, setPropertyTypeOther] = useState("");
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState("");
  const [photo, setPhoto] = useState<File | null>(null);
-   const ADMIN_EMAIL = "engomecabrel@gmail.com";
-
-
-const isAdmin =
-  user?.email?.toLowerCase().trim() === ADMIN_EMAIL;
+   
   const [loading, setLoading] = useState(true);
   const [interventionDate, setInterventionDate] = useState("");
  const [amount, setAmount] = useState("");
  const [paymentStatus, setPaymentStatus] = useState("non_paye");
  const [technician, setTechnician] = useState("");
- const [selectedCall, setSelectedCall] = useState<any>(null);
- const [signature, setSignature] = useState("");
+  const [signature, setSignature] = useState("");
  const [editingId, setEditingId] = useState<string | null>(null);
-  async function chargerAppels(
+
+   useEffect(() => {
+    async function rechercherClientExistant() {
+      const telephone = clientPhone
+        .replace(/\s/g, "")
+        .trim();
+
+      if (telephone.length < 10) {
+        setClientReconnu(null);
+        return;
+      }
+
+      setRechercheClient(true);
+
+      const { data, error } = await supabase
+        .from("calls")
+        .select(`
+  id,
+  client_name,
+  client_phone,
+  client_email,
+  address,
+  street_number,
+  street_name,
+  postal_code,
+  city,
+  country,
+  property_type,
+  property_type_other,
+  created_at
+`)
+        .eq("client_phone", telephone)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Erreur recherche client :",
+          error
+        );
+
+        setRechercheClient(false);
+        return;
+      }
+
+      if (!data) {
+        setClientReconnu(null);
+        setRechercheClient(false);
+        return;
+      }
+
+     setClientReconnu(data);
+
+setClientName(data.client_name || "");
+setClientEmail(data.client_email || "");
+
+setStreetNumber(data.street_number || "");
+setStreetName(data.street_name || "");
+setPostalCode(data.postal_code || "");
+setCity(data.city || "");
+setCountry(data.country || "France");
+
+setAddress(data.address || "");
+setPropertyType(data.property_type || "");
+setPropertyTypeOther(data.property_type_other || "");
+
+setRechercheClient(false);
+    }
+
+    const timer = setTimeout(() => {
+      rechercherClientExistant();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [clientPhone]);
+
+
+ useEffect(() => {
+  async function preRemplirClient() {
+    if (!clientCallId) return;
+
+    const { data, error } = await supabase
+      .from("calls")
+      .select(`
+        client_name,
+        client_phone,
+        client_email,
+        address
+      `)
+      .eq("id", clientCallId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Erreur chargement client :", error);
+      return;
+    }
+
+    if (!data) return;
+
+    setClientName(data.client_name || "");
+    setClientPhone(data.client_phone || "");
+    setClientEmail(data.client_email || "");
+    setAddress(data.address || "");
+  }
+
+  preRemplirClient();
+}, [clientCallId]);
+
+ async function chargerAppels(
   roleActuel?: string,
   technicienActuel?: string
 ) {
@@ -49,32 +186,90 @@ const isAdmin =
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) return;
+
   let query = supabase
     .from("calls")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
+const roleFinal = roleActuel || role;
 
-  const email = user?.email?.toLowerCase().trim();
-  const roleFinal =
-    email === "engomecabrel@gmail.com"
-      ? "admin"
-      : roleActuel || role;
+  if (roleFinal !== "admin") {
+    const nomTechnicien =
+      technicienActuel ||
+      technicianName;
 
- if (roleFinal !== "admin") {
-  const nomTechnicien =
-    email === "idriss@articallai.com"
-      ? "Idriss"
-      : technicienActuel;
+    if (!nomTechnicien) {
+      setCalls([]);
+      return;
+    }
 
-  query = query.eq("technician", nomTechnicien);
-}
+    query = query.eq(
+      "technician",
+      nomTechnicien
+    );
+  }
 
-  const { data, error } = await query;
+  const { data, error } =
+    await query;
 
   if (error) {
     alert(error.message);
-  } else {
-    setCalls(data || []);
+    return;
+  }
+
+  setCalls(data || []);
+}
+
+async function geocoderAdresseClient(adresse: string) {
+  if (!adresse.trim()) {
+    return {
+      latitude: null,
+      longitude: null,
+    };
+  }
+
+  try {
+    const response = await fetch("/api/geocode", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        address: adresse.trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(
+        "Erreur géocodage client :",
+        data.error
+      );
+
+      return {
+        latitude: null,
+        longitude: null,
+      };
+    }
+
+    return {
+      latitude: data.latitude,
+      longitude: data.longitude,
+    };
+  } catch (error) {
+    console.error(
+      "Erreur géocodage client :",
+      error
+    );
+
+    return {
+      latitude: null,
+      longitude: null,
+    };
   }
 }
 
@@ -105,12 +300,26 @@ if (photo) {
 
   photoUrl = data.publicUrl;
 }
+
+const positionClient =
+  await geocoderAdresseClient(address);
+
   const appelData = {
     user_id: user?.id,
     client_name: clientName,
     client_phone: clientPhone,
     client_email: clientEmail,
+    property_type: propertyType || null,
+    property_type_other:
+  propertyType === "autre"
+    ? propertyTypeOther.trim() || null
+    : null,
     address,
+    street_number: streetNumber || null,
+street_name: streetName || null,
+postal_code: postalCode || null,
+city: city || null,
+country: country || "France",
     problem,
     urgency,
     photo_url: photoUrl,
@@ -120,6 +329,14 @@ if (photo) {
     technician: technician,
     summary: problem,
     status: "nouveau",
+    client_latitude: positionClient.latitude,
+    client_longitude: positionClient.longitude,
+    required_skill:
+  requiredSkill || null,
+recommended_materials:
+  recommendedMaterials,
+workflow_summary:
+  workflowSummary || null,
   };
 
   let error;
@@ -146,6 +363,11 @@ if (photo) {
   setClientPhone("");
   setClientEmail("");
   setAddress("");
+  setStreetNumber("");
+setStreetName("");
+setPostalCode("");
+setCity("");
+setCountry("France");
   setProblem("");
   setUrgency("normal");
   setAmount("");
@@ -153,358 +375,11 @@ if (photo) {
   setInterventionDate("");
   setEditingId(null);
   chargerAppels();
+  setPropertyType("");
+  setPropertyTypeOther("");
 }
 }
 
-  async function marquerRappele(id: string) {
-    const { error } = await supabase
-      .from("calls")
-      .update({ status: "rappelé" })
-      .eq("id", id);
-
-    if (error) alert(error.message);
-    else chargerAppels();
-  }
-
-  async function marquerTermine(id: string) {
-    const { error } = await supabase
-      .from("calls")
-      .update({ status: "termine" })
-      .eq("id", id);
-
-    if (error) alert(error.message);
-    else chargerAppels();
-  }
-
-
-async function enregistrerNumeroFacture(
-  id: string,
-  invoiceNumber: string
-) {
-  const { error } = await supabase
-    .from("calls")
-    .update({
-      invoice_number: invoiceNumber,
-      invoice_date: new Date().toISOString(),
-    })
-    .eq("id", id);
-
-  if (error) {
-    console.error(error);
-  }
-}
-
-async function marquerPaye(id: string) {
-  const { error } = await supabase
-    .from("calls")
-    .update({ payment_status: "paye" })
-    .eq("id", id);
-
-  if (error) {
-    alert(error.message);
-  } else {
-    chargerAppels();
-  }
-}
-
-async function imageUrlToBase64(url: string): Promise<string> {
-  const response = await fetch(url);
-  const blob = await response.blob();
-
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function genererBonIntervention(call: any) {
-  const doc = new jsPDF();
-
-  doc.setFontSize(20);
-  doc.text("ARTICALL AI", 20, 20);
-
-  doc.setFontSize(14);
-  doc.text("BON D'INTERVENTION", 20, 32);
-
-  autoTable(doc, {
-    startY: 45,
-    head: [["Information", "Détail"]],
-    body: [
-      ["Client", call.client_name || ""],
-      ["Téléphone", call.client_phone || ""],
-      ["Problème", call.problem || ""],
-      [
-        "Date intervention",
-        call.intervention_date
-          ? new Date(call.intervention_date).toLocaleString("fr-FR")
-          : "",
-      ],
-      ["Montant", `${call.amount || 0} €`],
-     [
-  "Paiement",
-  call.payment_status === "paye"
-    ? "Payé"
-    : "Non payé",
-],
-      [
-  "Statut",
-  call.status === "nouveau"
-    ? "Nouveau"
-    : call.status === "rappelé"
-    ? "Rappelé"
-    : "Terminé",
-],
-    ],
-  });
-
-  doc.setFontSize(10);
-  doc.text(
-    "Document généré par ArtiCall AI - Non valable comme facture officielle",
-    20,
-    280
-  );
-let positionY = (doc as any).lastAutoTable?.finalY || 180;
-
-if (call.photo_url) {
-  const photoBase64 = await imageUrlToBase64(call.photo_url);
-
-  doc.setFontSize(12);
-  doc.text("Photo de l'intervention :", 20, positionY + 15);
-
-  doc.addImage(photoBase64, "JPEG", 20, positionY + 20, 80, 60);
-
-  positionY = positionY + 90;
-}
-
-if (call.signature_url) {
-  doc.setFontSize(12);
-  doc.text("Signature du client :", 20, positionY + 15);
-
-  doc.addImage(
-    call.signature_url,
-    "PNG",
-    20,
-    positionY + 20,
-    60,
-    30
-  );
-}
-
-console.log(call.photo_url);
-
-alert("PHOTO URL = " + call.photo_url);
-
-  doc.save(`bon-intervention-${call.client_name || "client"}.pdf`);
-}
-
-function genererFacture(call: any) {
-  const doc = new jsPDF();
-
-  const numeroFacture =
-  call.invoice_number ||
-  `FAC-${new Date().getFullYear()}-${call.id.slice(0, 6)}`;
-
-if (!call.invoice_number) {
-  enregistrerNumeroFacture(call.id, numeroFacture);
-}
-
-  doc.setFontSize(20);
-  doc.text("ARTICALL AI", 20, 20);
-
-  doc.setFontSize(16);
-  doc.text("FACTURE", 20, 35);
-
-  autoTable(doc, {
-    startY: 50,
-    head: [["Information", "Valeur"]],
-    body: [
-      ["Facture", numeroFacture],
-      ["Client", call.client_name || ""],
-      ["Téléphone", call.client_phone || ""],
-      ["Email", call.client_email || ""],
-      ["Prestation", call.problem || ""],
-      [
-        "Date",
-        call.intervention_date
-          ? new Date(call.intervention_date).toLocaleDateString("fr-FR")
-          : "",
-      ],
-      ["Montant TTC", `${call.amount || 0} €`],
-      [
-        "Paiement",
-        call.payment_status === "paye"
-          ? "Payé"
-          : "Non payé",
-      ],
-    ],
-  });
-
-  doc.save(`facture-${numeroFacture}.pdf`);
-}
-async function envoyerEmail(call: any) {
-  try {
-    const doc = new jsPDF();
-
-    doc.setFontSize(20);
-    doc.text("ARTICALL AI", 20, 20);
-
-    doc.setFontSize(14);
-    doc.text("BON D'INTERVENTION", 20, 32);
-
-    autoTable(doc, {
-      startY: 45,
-      head: [["Information", "Détail"]],
-      body: [
-        ["Client", call.client_name || ""],
-        ["Téléphone", call.client_phone || ""],
-        ["Email", call.client_email || ""],
-        ["Problème", call.problem || ""],
-        [
-          "Date intervention",
-          call.intervention_date
-            ? new Date(call.intervention_date).toLocaleString("fr-FR")
-            : "",
-        ],
-        ["Montant", `${call.amount || 0} €`],
-        ["Paiement", call.payment_status === "paye" ? "Payé" : "Non payé"],
-        ["Technicien", call.technician || ""],
-      ],
-    });
-
-    if (call.signature_url) {
-  const finalY = (doc as any).lastAutoTable?.finalY || 180;
-
-  doc.setFontSize(12);
-  doc.text("Signature du client :", 20, finalY + 15);
-
-  doc.addImage(
-    call.signature_url,
-    "PNG",
-    20,
-    finalY + 20,
-    60,
-    30
-  );
-}
-
-    const pdfBase64 = doc.output("datauristring").split(",")[1];
-
-    const response = await fetch("/api/send-pdf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: call.client_email,
-        clientName: call.client_name,
-        pdfBase64,
-      }),
-    });
-
-    if (response.ok) {
-      alert("Email avec PDF envoyé avec succès !");
-    } else {
-      const result = await response.json();
-      alert("Erreur : " + JSON.stringify(result));
-    }
-  } catch (error) {
-    alert("Erreur lors de l'envoi.");
-  }
-}
-async function envoyerFacture(call: any) {
-  try {
-    const doc = new jsPDF();
-
-    const numeroFacture =
-      call.invoice_number ||
-      `FAC-${new Date().getFullYear()}-${call.id.slice(0, 6)}`;
-
-    doc.setFontSize(20);
-    doc.text("ARTICALL AI", 20, 20);
-
-    doc.setFontSize(16);
-    doc.text("FACTURE", 20, 35);
-
-    autoTable(doc, {
-      startY: 50,
-      head: [["Information", "Valeur"]],
-      body: [
-        ["Facture", numeroFacture],
-        ["Client", call.client_name || ""],
-        ["Téléphone", call.client_phone || ""],
-        ["Email", call.client_email || ""],
-        ["Prestation", call.problem || ""],
-        [
-          "Date",
-          call.intervention_date
-            ? new Date(call.intervention_date).toLocaleDateString("fr-FR")
-            : "",
-        ],
-        ["Montant TTC", `${call.amount || 0} €`],
-        ["Paiement", call.payment_status === "paye" ? "Payé" : "Non payé"],
-      ],
-    });
-
-    const pdfBase64 = doc.output("datauristring").split(",")[1];
-
-    const response = await fetch("/api/send-pdf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: call.client_email,
-        clientName: call.client_name,
-        pdfBase64,
-        filename: `facture-${numeroFacture}.pdf`,
-        subject: `Votre facture ${numeroFacture}`,
-      }),
-    });
-
-    if (response.ok) {
-      alert("Facture envoyée avec succès !");
-    } else {
-      const result = await response.json();
-      alert("Erreur : " + JSON.stringify(result));
-    }
-  } catch (error) {
-    alert("Erreur lors de l'envoi de la facture.");
-  }
-}
-  async function supprimerAppel(id: string) {
-    if (!confirm("Voulez-vous vraiment supprimer cet appel ?")) return;
-
-    const { error } = await supabase.from("calls").delete().eq("id", id);
-
-    if (error) alert(error.message);
-    else chargerAppels();
-  }
-  function modifierAppel(call: any) {
-  setEditingId(call.id);
-  setClientName(call.client_name || "");
-  setClientPhone(call.client_phone || "");
-  setClientEmail(call.client_email || "");
-  setAddress(call.address || "");
-  setProblem(call.problem || "");
-  setUrgency(call.urgency || "normal");
-
-  setInterventionDate(
-    call.intervention_date
-      ? new Date(call.intervention_date).toISOString().slice(0, 16)
-      : ""
-  );
-
-  setAmount(
-    call.amount !== null && call.amount !== undefined
-      ? String(call.amount)
-      : ""
-  );
-
-  setPaymentStatus(call.payment_status || "non_paye");
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
   useEffect(() => {
   async function verifierConnexion() {
     const {
@@ -524,19 +399,11 @@ async function envoyerFacture(call: any) {
   .single();
 
 console.log("PROFILE =", profile);
+const roleFinal = profile?.role || "technicien";
 
-setRole(
-  user.email?.toLowerCase().trim() === "engomecabrel@gmail.com"
-    ? "admin"
-    : profile?.role || "technicien"
-);
-    setLoading(false);
-   chargerAppels(
-  user.email?.toLowerCase().trim() === "engomecabrel@gmail.com"
-    ? "admin"
-    : profile?.role || "technicien",
-  profile?.technician_name
-);
+setRole(roleFinal);
+setLoading(false);
+chargerAppels(roleFinal, profile?.technician_name);
   }
 
   verifierConnexion();
@@ -550,10 +417,27 @@ function afficherDate(date: string) {
     timeStyle: "short",
   });
 }
+
+if (role === "technicien") {
+  return (
+    <MainLayout
+      user={user}
+      role={role}
+      calls={calls}
+    >
+      <TechnicianDashboard
+        calls={calls}
+        technicianName={technicianName}
+      />
+    </MainLayout>
+  );
+}
+
   return (
     <MainLayout
   user={user}
   role={role}
+  calls={calls}
 >
      
 
@@ -568,6 +452,20 @@ function afficherDate(date: string) {
     setClientEmail={setClientEmail}
     address={address}
     setAddress={setAddress}
+    streetNumber={streetNumber}
+setStreetNumber={setStreetNumber}
+
+streetName={streetName}
+setStreetName={setStreetName}
+
+postalCode={postalCode}
+setPostalCode={setPostalCode}
+
+city={city}
+setCity={setCity}
+
+country={country}
+setCountry={setCountry}
     problem={problem}
     setProblem={setProblem}
     interventionDate={interventionDate}
@@ -582,6 +480,21 @@ function afficherDate(date: string) {
     setTechnician={setTechnician}
     setPhoto={setPhoto}
     ajouterAppel={ajouterAppel}
+    requiredSkill={requiredSkill}
+setRequiredSkill={setRequiredSkill}
+
+recommendedMaterials={recommendedMaterials}
+setRecommendedMaterials={setRecommendedMaterials}
+
+workflowSummary={workflowSummary}
+setWorkflowSummary={setWorkflowSummary}
+
+clientReconnu={clientReconnu}
+rechercheClient={rechercheClient}
+propertyType={propertyType}
+setPropertyType={setPropertyType}
+propertyTypeOther={propertyTypeOther}
+setPropertyTypeOther={setPropertyTypeOther}
   />
 )}
 
@@ -599,30 +512,29 @@ function afficherDate(date: string) {
 <InterventionsTable
   calls={calls}
   afficherDate={afficherDate}
-  setSelectedCall={setSelectedCall}
 />
 
-<CalendarView
-  calls={calls}
-  setSelectedCall={setSelectedCall}
-/>
-
-     <InterventionDetails
-  call={selectedCall}
-  role={role}
-  afficherDate={afficherDate}
-  modifierAppel={modifierAppel}
-  genererBonIntervention={genererBonIntervention}
-  genererFacture={genererFacture}
-  envoyerFacture={envoyerFacture}
-  envoyerEmail={envoyerEmail}
-  marquerPaye={marquerPaye}
-  supprimerAppel={supprimerAppel}
-  marquerRappele={marquerRappele}
-  marquerTermine={marquerTermine}
-  setSelectedCall={setSelectedCall}
-/>
+<CalendarView calls={calls} />
 
 </MainLayout>
 );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          style={{
+            minHeight: "100vh",
+            padding: "30px",
+          }}
+        >
+          Chargement d’ArtiCall AI...
+        </main>
+      }
+    >
+      <HomeContent />
+    </Suspense>
+  );
 }

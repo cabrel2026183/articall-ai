@@ -1,5 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+
+type Technician = {
+  id: string;
+  name: string;
+};
+
 type FiltersProps = {
   search: string;
   setSearch: (value: string) => void;
@@ -17,6 +25,29 @@ export default function Filters({
   filtreTechnicien,
   setFiltreTechnicien,
 }: FiltersProps) {
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+
+  useEffect(() => {
+    async function chargerTechniciens() {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error(
+          "Erreur chargement techniciens :",
+          error
+        );
+        return;
+      }
+
+      setTechnicians(data || []);
+    }
+
+    chargerTechniciens();
+  }, []);
+
   return (
     <>
       <input
@@ -48,9 +79,12 @@ export default function Filters({
           }}
         >
           <option value="tous">Tous les techniciens</option>
-          <option value="Issa">Issa</option>
-          <option value="Idriss">Idriss</option>
-          <option value="Dupont">Dupont</option>
+
+          {technicians.map((tech) => (
+            <option key={tech.id} value={tech.name}>
+              {tech.name}
+            </option>
+          ))}
         </select>
       </div>
     </>

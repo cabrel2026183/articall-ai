@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,35 +10,64 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { supabase } from "../../lib/supabase";
+import type { Invoice } from "../../lib/types";
 
-type RevenueChartProps = {
-  calls: any[];
+type RevenuePoint = {
+  day: string;
+  revenue: number;
 };
 
-export default function RevenueChart({ calls }: RevenueChartProps) {
-  const data = Object.values(
-    calls.reduce((acc: any, call) => {
-      if (!call.created_at) return acc;
+type InvoiceRevenue = Pick<Invoice, "created_at" | "total_amount">;
 
-      const date = new Date(call.created_at);
+export default function RevenueChart() {
+  const [data, setData] = useState<RevenuePoint[]>([]);
 
-      const day = date.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "short",
-      });
+  useEffect(() => {
+    chargerChiffreAffaires();
+  }, []);
 
-      if (!acc[day]) {
-        acc[day] = {
-          day,
-          revenue: 0,
-        };
-      }
+  async function chargerChiffreAffaires() {
+    const { data: invoicesData, error } = await supabase
+      .from("invoices")
+      .select("created_at, total_amount")
+      .order("created_at", { ascending: true });
 
-      acc[day].revenue += call.amount || 0;
+    if (error) {
+      console.error(
+        "Erreur chargement chiffre d'affaires :",
+        error
+      );
+      setData([]);
+      return;
+    }
 
-      return acc;
-    }, {})
-  );
+    const parJour = new Map<string, number>();
+
+    ((invoicesData as InvoiceRevenue[]) || []).forEach((invoice) => {
+      if (!invoice.created_at) return;
+
+      const day = new Date(invoice.created_at).toLocaleDateString(
+        "fr-FR",
+        {
+          day: "2-digit",
+          month: "short",
+        }
+      );
+
+      parJour.set(
+        day,
+        (parJour.get(day) || 0) + Number(invoice.total_amount || 0)
+      );
+    });
+
+    setData(
+      Array.from(parJour.entries()).map(([day, revenue]) => ({
+        day,
+        revenue,
+      }))
+    );
+  }
 
   return (
     <div style={{ width: "100%", height: "280px" }}>

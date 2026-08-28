@@ -3,16 +3,18 @@
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import frLocale from "@fullcalendar/core/locales/fr";
+import { useRouter } from "next/navigation";
+import type { Call } from "../lib/types";
 
 type CalendarViewProps = {
-  calls: any[];
-  setSelectedCall: (call: any) => void;
+  calls: Call[];
 };
 
 export default function CalendarView({
   calls,
-  setSelectedCall,
 }: CalendarViewProps) {
+  const router = useRouter();
+
   return (
     <>
       <h2>📅 Calendrier des interventions</h2>
@@ -24,22 +26,35 @@ export default function CalendarView({
         height="auto"
         eventDisplay="block"
         events={calls
-          .filter((call) => call.intervention_date)
+          .filter(
+            (call): call is typeof call & { intervention_date: string } =>
+              Boolean(call.intervention_date)
+          )
           .map((call) => ({
-            title: `${call.client_name}`,
+            id: call.id,
+            title:
+              call.client_name ||
+              "Client non renseigné",
             date: call.intervention_date,
             color:
               call.urgency === "urgent"
                 ? "red"
                 : call.urgency === "important"
-                ? "orange"
-                : "green",
+                  ? "orange"
+                  : "green",
             extendedProps: {
-              call,
+              callId: call.id,
             },
           }))}
         eventClick={(info) => {
-          setSelectedCall(info.event.extendedProps.call);
+          const callId =
+            info.event.extendedProps.callId;
+
+          if (!callId) return;
+
+          router.push(
+            `/interventions/${callId}`
+          );
         }}
       />
     </>

@@ -4,12 +4,48 @@ import { useEffect, useState } from "react";
 import MainLayout from "../../components/MainLayout";
 import { supabase } from "../../lib/supabase";
 import ClientsTable from "../../components/ClientsTable";
+import type { Call } from "../../lib/types";
+
+type ClientRow = Pick<
+  Call,
+  "id" | "client_name" | "client_phone" | "client_email" | "address"
+>;
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    chargerClients();
+    async function verifierAccesEtCharger() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const email = user.email?.toLowerCase().trim();
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("email", email)
+        .maybeSingle();
+
+      const role = profile?.role || "technicien";
+
+      if (role !== "admin") {
+        window.location.href = "/";
+        return;
+      }
+
+      await chargerClients();
+      setLoading(false);
+    }
+
+    verifierAccesEtCharger();
   }, []);
 
   async function chargerClients() {
@@ -23,11 +59,16 @@ export default function ClientsPage() {
       return;
     }
 
-    const uniques = new Map();
+    const uniques = new Map<string, ClientRow>();
 
-    data?.forEach((call) => {
-      if (!uniques.has(call.client_phone)) {
-        uniques.set(call.client_phone, {
+    (data as Call[] | null)?.forEach((call) => {
+      const cleClient = call.client_phone || call.client_email || call.client_name;
+
+      if (!cleClient) return;
+
+      if (!uniques.has(cleClient)) {
+        uniques.set(cleClient, {
+          id: call.id,
           client_name: call.client_name,
           client_phone: call.client_phone,
           client_email: call.client_email,
@@ -36,14 +77,26 @@ export default function ClientsPage() {
       }
     });
 
-    setClients(Array.from(uniques.values()));
+    const clientsTries = Array.from(uniques.values()).sort((a, b) =>
+      (a.client_name || "").localeCompare(b.client_name || "")
+    );
+
+    setClients(clientsTries);
+  }
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <p>Chargement...</p>
+      </MainLayout>
+    );
   }
 
   return (
-  <MainLayout>
-    <h1>👥 Clients</h1>
+    <MainLayout>
+      <h1>👥 Clients</h1>
 
-    <ClientsTable clients={clients} />
-  </MainLayout>
-);
+      <ClientsTable clients={clients} />
+    </MainLayout>
+  );
 }
