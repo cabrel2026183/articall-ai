@@ -418,6 +418,7 @@ export default function CallForm(props: CallFormProps) {
           <DynamicCallWorkflow
             trade="plomberie"
             propertyType={props.propertyType}
+            problem={props.problem}
             onResultChange={(result) => {
               if (result.intervention) {
                 props.setProblem(result.intervention);

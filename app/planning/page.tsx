@@ -1,25 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import MainLayout from "../../components/MainLayout";
 import { supabase } from "../../lib/supabase";
 import type { Call, Technician } from "../../lib/types";
 
-const AUCUN_TECHNICIEN = "__non_assigne__";
+const START_HOUR = 8;
+const END_HOUR = 19;
+const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
+const CARD_HEIGHT = 50;
+const HEURES = Array.from(
+  { length: END_HOUR - START_HOUR + 1 },
+  (_, i) => START_HOUR + i
+);
+const JOURS_LABELS = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+];
+
+type Vue = "jour" | "semaine";
+
+type ColonneCible = {
+  cle: string;
+  titre: string;
+  technicien: string | null;
+};
 
 export default function PlanningPage() {
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState("");
+  const [vue, setVue] = useState<Vue>("jour");
+
   const [dateSelectionnee, setDateSelectionnee] = useState(
     formatDateInput(new Date())
   );
+  const [semaineReference, setSemaineReference] = useState(new Date());
+
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
   const [interventionEnGlissement, setInterventionEnGlissement] =
     useState<string | null>(null);
-  const [colonneSurvolee, setColonneSurvolee] = useState<string | null>(null);
+  const [cibleSurvolee, setCibleSurvolee] = useState<string | null>(null);
   const [enregistrement, setEnregistrement] = useState(false);
+
+  const lundiSemaine = useMemo(
+    () => getLundiDeLaSemaine(semaineReference),
+    [semaineReference]
+  );
+
+  const joursSemaine = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const jour = new Date(lundiSemaine);
+      jour.setDate(jour.getDate() + i);
+      return jour;
+    });
+  }, [lundiSemaine]);
 
   useEffect(() => {
     async function verifierAccesEtCharger() {
@@ -54,8 +95,9 @@ export default function PlanningPage() {
   }, []);
 
   useEffect(() => {
-    chargerInterventionsDuJour();
-  }, [dateSelectionnee]);
+    chargerPeriodeActuelle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vue, dateSelectionnee, lundiSemaine]);
 
   async function chargerTechniciens() {
     const { data, error } = await supabase
@@ -74,18 +116,30 @@ export default function PlanningPage() {
     setTechnicians((data as Technician[]) || []);
   }
 
-  async function chargerInterventionsDuJour() {
+  async function chargerPeriodeActuelle() {
     setLoading(true);
     setErreur("");
 
-    const debutJournee = new Date(`${dateSelectionnee}T00:00:00`);
-    const finJournee = new Date(`${dateSelectionnee}T23:59:59`);
+    let debut: Date;
+    let fin: Date;
+
+    if (vue === "jour") {
+      debut = new Date(`${dateSelectionnee}T00:00:00`);
+      fin = new Date(`${dateSelectionnee}T23:59:59`);
+    } else {
+      debut = new Date(lundiSemaine);
+      debut.setHours(0, 0, 0, 0);
+
+      fin = new Date(lundiSemaine);
+      fin.setDate(fin.getDate() + 6);
+      fin.setHours(23, 59, 59, 999);
+    }
 
     const { data, error } = await supabase
       .from("calls")
       .select("*")
-      .gte("intervention_date", debutJournee.toISOString())
-      .lte("intervention_date", finJournee.toISOString())
+      .gte("intervention_date", debut.toISOString())
+      .lte("intervention_date", fin.toISOString())
       .order("intervention_date", { ascending: true });
 
     if (error) {
@@ -99,35 +153,84 @@ export default function PlanningPage() {
     setLoading(false);
   }
 
-  async function reassignerTechnicien(
+  async function reassignerIntervention(
     callId: string,
-    nomTechnicien: string | null
+    nomTechnicien: string | null,
+    nouvelleDateISO: string
   ) {
     setEnregistrement(true);
 
-    // Mise à jour optimiste : on met à jour l'affichage tout de suite,
-    // avant même la réponse de Supabase.
     setCalls((current) =>
       current.map((call) =>
         call.id === callId
-          ? { ...call, technician: nomTechnicien }
+          ? {
+              ...call,
+              technician: nomTechnicien,
+              intervention_date: nouvelleDateISO,
+            }
           : call
       )
     );
 
     const { error } = await supabase
       .from("calls")
-      .update({ technician: nomTechnicien })
+      .update({
+        technician: nomTechnicien,
+        intervention_date: nouvelleDateISO,
+      })
       .eq("id", callId);
 
     if (error) {
       console.error("Erreur réassignation :", error);
       setErreur(error.message);
-      // En cas d'échec, on recharge pour annuler la mise à jour optimiste
-      await chargerInterventionsDuJour();
+      await chargerPeriodeActuelle();
     }
 
     setEnregistrement(false);
+  }
+
+  function reassignerVersHeure(
+    callId: string,
+    nomTechnicien: string | null,
+    minutesDepuisDebut: number
+  ) {
+    const minutesClampees = Math.max(
+      0,
+      Math.min(TOTAL_MINUTES - 15, Math.round(minutesDepuisDebut / 15) * 15)
+    );
+
+    const nouvelleDate = new Date(`${dateSelectionnee}T00:00:00`);
+
+    nouvelleDate.setHours(
+      START_HOUR + Math.floor(minutesClampees / 60),
+      minutesClampees % 60,
+      0,
+      0
+    );
+
+    reassignerIntervention(callId, nomTechnicien, nouvelleDate.toISOString());
+  }
+
+  function reassignerVersJour(
+    callId: string,
+    nomTechnicien: string | null,
+    jourCible: Date
+  ) {
+    const callActuel = calls.find((call) => call.id === callId);
+
+    if (!callActuel || !callActuel.intervention_date) return;
+
+    const ancienneDate = new Date(callActuel.intervention_date);
+    const nouvelleDate = new Date(jourCible);
+
+    nouvelleDate.setHours(
+      ancienneDate.getHours(),
+      ancienneDate.getMinutes(),
+      0,
+      0
+    );
+
+    reassignerIntervention(callId, nomTechnicien, nouvelleDate.toISOString());
   }
 
   function changerJour(delta: number) {
@@ -136,27 +239,28 @@ export default function PlanningPage() {
     setDateSelectionnee(formatDateInput(date));
   }
 
-  function estAssigne(call: Call, nomTechnicien: string) {
-    return call.technician === nomTechnicien;
+  function changerSemaine(delta: number) {
+    const date = new Date(lundiSemaine);
+    date.setDate(date.getDate() + delta * 7);
+    setSemaineReference(date);
   }
 
   function nonAssigne(call: Call) {
     return !call.technician || call.technician === "vide";
   }
 
-  const colonnes: { cle: string; titre: string; technicien: string | null }[] =
-    [
-      ...technicians.map((tech) => ({
-        cle: tech.id,
-        titre: tech.name,
-        technicien: tech.name,
-      })),
-      {
-        cle: AUCUN_TECHNICIEN,
-        titre: "Non assigné",
-        technicien: null,
-      },
-    ];
+  const colonnes: ColonneCible[] = [
+    ...technicians.map((tech) => ({
+      cle: tech.id,
+      titre: tech.name,
+      technicien: tech.name,
+    })),
+    {
+      cle: "__non_assigne__",
+      titre: "Non assigné",
+      technicien: null,
+    },
+  ];
 
   if (loading && technicians.length === 0) {
     return (
@@ -168,7 +272,7 @@ export default function PlanningPage() {
 
   return (
     <MainLayout>
-      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "1500px", margin: "0 auto" }}>
         <div
           style={{
             display: "flex",
@@ -176,7 +280,7 @@ export default function PlanningPage() {
             alignItems: "center",
             flexWrap: "wrap",
             gap: "16px",
-            marginBottom: "24px",
+            marginBottom: "20px",
           }}
         >
           <div>
@@ -185,58 +289,121 @@ export default function PlanningPage() {
             </h1>
 
             <p style={{ marginTop: "8px", color: "#64748b" }}>
-              Faites glisser une intervention d'une colonne à l'autre pour la
-              réassigner.
+              {vue === "jour"
+                ? "Faites glisser une intervention verticalement pour changer l'heure, ou vers une autre colonne pour changer de technicien."
+                : "Faites glisser une intervention vers un autre jour ou un autre technicien."}
             </p>
           </div>
 
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              gap: "10px",
+              borderRadius: "10px",
+              border: "1px solid #cbd5e1",
+              overflow: "hidden",
             }}
           >
             <button
               type="button"
-              onClick={() => changerJour(-1)}
-              style={boutonNav}
+              onClick={() => setVue("jour")}
+              style={boutonBascule(vue === "jour")}
             >
-              ← Veille
+              Jour
             </button>
-
-            <input
-              type="date"
-              value={dateSelectionnee}
-              onChange={(event) =>
-                setDateSelectionnee(event.target.value)
-              }
-              style={{
-                padding: "10px 12px",
-                borderRadius: "9px",
-                border: "1px solid #cbd5e1",
-                fontWeight: 700,
-              }}
-            />
-
             <button
               type="button"
-              onClick={() => changerJour(1)}
-              style={boutonNav}
+              onClick={() => setVue("semaine")}
+              style={boutonBascule(vue === "semaine")}
             >
-              Lendemain →
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setDateSelectionnee(formatDateInput(new Date()))
-              }
-              style={{ ...boutonNav, background: "#2563eb", color: "white" }}
-            >
-              Aujourd'hui
+              Semaine
             </button>
           </div>
+        </div>
+
+        {/* NAVIGATION */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            marginBottom: "20px",
+            flexWrap: "wrap",
+          }}
+        >
+          {vue === "jour" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => changerJour(-1)}
+                style={boutonNav}
+              >
+                ← Veille
+              </button>
+
+              <input
+                type="date"
+                value={dateSelectionnee}
+                onChange={(event) =>
+                  setDateSelectionnee(event.target.value)
+                }
+                style={champDate}
+              />
+
+              <button
+                type="button"
+                onClick={() => changerJour(1)}
+                style={boutonNav}
+              >
+                Lendemain →
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setDateSelectionnee(formatDateInput(new Date()))
+                }
+                style={{ ...boutonNav, background: "#2563eb", color: "white" }}
+              >
+                Aujourd'hui
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => changerSemaine(-1)}
+                style={boutonNav}
+              >
+                ← Semaine précédente
+              </button>
+
+              <span
+                style={{
+                  padding: "10px 14px",
+                  fontWeight: 700,
+                  color: "#334155",
+                }}
+              >
+                {formatPlageSemaine(joursSemaine)}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => changerSemaine(1)}
+                style={boutonNav}
+              >
+                Semaine suivante →
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSemaineReference(new Date())}
+                style={{ ...boutonNav, background: "#2563eb", color: "white" }}
+              >
+                Cette semaine
+              </button>
+            </>
+          )}
         </div>
 
         {erreur && (
@@ -267,184 +434,361 @@ export default function PlanningPage() {
             Aucun technicien actif. Ajoutez des techniciens dans la page
             "Techniciens" pour utiliser le planning.
           </div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              gap: "16px",
-              overflowX: "auto",
-              paddingBottom: "12px",
-            }}
-          >
-            {colonnes.map((colonne) => {
-              const interventionsColonne = calls.filter((call) =>
-                colonne.technicien === null
-                  ? nonAssigne(call)
-                  : estAssigne(call, colonne.technicien)
-              );
-
-              const survolee = colonneSurvolee === colonne.cle;
-
-              return (
+        ) : vue === "jour" ? (
+          <div style={{ display: "flex", overflowX: "auto", paddingBottom: "12px" }}>
+            {/* AXE DES HEURES */}
+            <div
+              style={{
+                width: "56px",
+                flexShrink: 0,
+                position: "relative",
+                height: `${TOTAL_MINUTES}px`,
+                marginTop: "44px",
+              }}
+            >
+              {HEURES.map((heure) => (
                 <div
-                  key={colonne.cle}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setColonneSurvolee(colonne.cle);
-                  }}
-                  onDragLeave={() => {
-                    setColonneSurvolee((current) =>
-                      current === colonne.cle ? null : current
-                    );
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    setColonneSurvolee(null);
-
-                    if (!interventionEnGlissement) return;
-
-                    reassignerTechnicien(
-                      interventionEnGlissement,
-                      colonne.technicien
-                    );
-
-                    setInterventionEnGlissement(null);
-                  }}
+                  key={heure}
                   style={{
-                    minWidth: "280px",
-                    width: "280px",
-                    flexShrink: 0,
-                    background: survolee ? "#eff6ff" : "#f8fafc",
-                    border: survolee
-                      ? "2px dashed #2563eb"
-                      : "1px solid #e2e8f0",
-                    borderRadius: "14px",
-                    padding: "14px",
-                    minHeight: "200px",
-                    transition: "background 0.15s ease",
+                    position: "absolute",
+                    top: `${(heure - START_HOUR) * 60 - 7}px`,
+                    fontSize: "12px",
+                    color: "#94a3b8",
+                    fontWeight: 700,
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <strong style={{ color: "#0f172a" }}>
-                      {colonne.technicien ? `👷 ${colonne.titre}` : "❔ Non assigné"}
-                    </strong>
+                  {heure}h
+                </div>
+              ))}
+            </div>
 
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {interventionsColonne.length}
-                    </span>
-                  </div>
+            {/* COLONNES TECHNICIENS */}
+            <div style={{ display: "flex", gap: "16px" }}>
+              {colonnes.map((colonne) => {
+                const interventionsColonne = calls.filter((call) =>
+                  colonne.technicien === null
+                    ? nonAssigne(call)
+                    : call.technician === colonne.technicien
+                );
 
-                  {interventionsColonne.length === 0 ? (
-                    <p
-                      style={{
-                        color: "#94a3b8",
-                        fontSize: "13px",
-                        textAlign: "center",
-                        padding: "20px 0",
-                      }}
-                    >
-                      Aucune intervention
-                    </p>
-                  ) : (
+                const survolee = cibleSurvolee === colonne.cle;
+
+                return (
+                  <div key={colonne.cle} style={{ width: "260px", flexShrink: 0 }}>
                     <div
                       style={{
-                        display: "grid",
-                        gap: "8px",
+                        marginBottom: "8px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        height: "36px",
                       }}
                     >
-                      {interventionsColonne.map((call) => (
+                      <strong style={{ color: "#0f172a", fontSize: "14px" }}>
+                        {colonne.technicien
+                          ? `👷 ${colonne.titre}`
+                          : "❔ Non assigné"}
+                      </strong>
+
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#64748b",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {interventionsColonne.length}
+                      </span>
+                    </div>
+
+                    <div
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setCibleSurvolee(colonne.cle);
+                      }}
+                      onDragLeave={() => {
+                        setCibleSurvolee((current) =>
+                          current === colonne.cle ? null : current
+                        );
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        setCibleSurvolee(null);
+
+                        if (!interventionEnGlissement) return;
+
+                        const rect =
+                          event.currentTarget.getBoundingClientRect();
+                        const offsetY = event.clientY - rect.top;
+
+                        reassignerVersHeure(
+                          interventionEnGlissement,
+                          colonne.technicien,
+                          offsetY
+                        );
+
+                        setInterventionEnGlissement(null);
+                      }}
+                      style={{
+                        position: "relative",
+                        height: `${TOTAL_MINUTES}px`,
+                        background: survolee ? "#eff6ff" : "#f8fafc",
+                        border: survolee
+                          ? "2px dashed #2563eb"
+                          : "1px solid #e2e8f0",
+                        borderRadius: "10px",
+                        backgroundImage:
+                          "repeating-linear-gradient(to bottom, #e2e8f0 0, #e2e8f0 1px, transparent 1px, transparent 60px)",
+                      }}
+                    >
+                      {interventionsColonne.map((call) => {
+                        const top = call.intervention_date
+                          ? Math.max(
+                              0,
+                              Math.min(
+                                TOTAL_MINUTES - CARD_HEIGHT,
+                                minutesDepuisDebut(call.intervention_date)
+                              )
+                            )
+                          : 0;
+
+                        return (
+                          <div
+                            key={call.id}
+                            draggable
+                            onDragStart={() =>
+                              setInterventionEnGlissement(call.id)
+                            }
+                            onDragEnd={() =>
+                              setInterventionEnGlissement(null)
+                            }
+                            style={{
+                              position: "absolute",
+                              top: `${top}px`,
+                              left: "4px",
+                              right: "4px",
+                              height: `${CARD_HEIGHT}px`,
+                              padding: "6px 8px",
+                              borderRadius: "8px",
+                              background: "white",
+                              border: "1px solid #e2e8f0",
+                              borderLeft: `4px solid ${couleurUrgence(
+                                call.urgency
+                              )}`,
+                              cursor: "grab",
+                              overflow: "hidden",
+                              opacity:
+                                interventionEnGlissement === call.id
+                                  ? 0.4
+                                  : 1,
+                              boxShadow: "0 2px 6px rgba(15,23,42,0.06)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#64748b",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {formatHeure(call.intervention_date)}
+                            </div>
+
+                            <strong
+                              style={{
+                                display: "block",
+                                fontSize: "13px",
+                                color: "#0f172a",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {call.client_name || "Client non renseigné"}
+                            </strong>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* VUE SEMAINE */
+          <div style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "12px" }}>
+            {colonnes.map((colonne) => (
+              <div key={colonne.cle} style={{ width: "300px", flexShrink: 0 }}>
+                <div
+                  style={{
+                    marginBottom: "10px",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                  }}
+                >
+                  {colonne.technicien ? `👷 ${colonne.titre}` : "❔ Non assigné"}
+                </div>
+
+                <div style={{ display: "grid", gap: "10px" }}>
+                  {joursSemaine.map((jour) => {
+                    const cleCible = `${colonne.cle}|${formatDateInput(jour)}`;
+                    const survolee = cibleSurvolee === cleCible;
+
+                    const interventionsJour = calls
+                      .filter((call) => {
+                        if (!call.intervention_date) return false;
+
+                        const appartientColonne =
+                          colonne.technicien === null
+                            ? nonAssigne(call)
+                            : call.technician === colonne.technicien;
+
+                        if (!appartientColonne) return false;
+
+                        const dateCall = new Date(call.intervention_date);
+
+                        return (
+                          dateCall.getFullYear() === jour.getFullYear() &&
+                          dateCall.getMonth() === jour.getMonth() &&
+                          dateCall.getDate() === jour.getDate()
+                        );
+                      })
+                      .sort((a, b) =>
+                        (a.intervention_date || "").localeCompare(
+                          b.intervention_date || ""
+                        )
+                      );
+
+                    return (
+                      <div
+                        key={cleCible}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setCibleSurvolee(cleCible);
+                        }}
+                        onDragLeave={() => {
+                          setCibleSurvolee((current) =>
+                            current === cleCible ? null : current
+                          );
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          setCibleSurvolee(null);
+
+                          if (!interventionEnGlissement) return;
+
+                          reassignerVersJour(
+                            interventionEnGlissement,
+                            colonne.technicien,
+                            jour
+                          );
+
+                          setInterventionEnGlissement(null);
+                        }}
+                        style={{
+                          padding: "8px",
+                          borderRadius: "10px",
+                          background: survolee ? "#eff6ff" : "#f8fafc",
+                          border: survolee
+                            ? "2px dashed #2563eb"
+                            : "1px solid #e2e8f0",
+                          minHeight: "56px",
+                        }}
+                      >
                         <div
-                          key={call.id}
-                          draggable
-                          onDragStart={() =>
-                            setInterventionEnGlissement(call.id)
-                          }
-                          onDragEnd={() =>
-                            setInterventionEnGlissement(null)
-                          }
                           style={{
-                            padding: "12px",
-                            borderRadius: "10px",
-                            background: "white",
-                            border: "1px solid #e2e8f0",
-                            borderLeft: `4px solid ${couleurUrgence(
-                              call.urgency
-                            )}`,
-                            cursor: "grab",
-                            opacity:
-                              interventionEnGlissement === call.id
-                                ? 0.4
-                                : 1,
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            color: "#475569",
+                            marginBottom: "6px",
                           }}
                         >
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#64748b",
-                              fontWeight: 700,
-                              marginBottom: "4px",
-                            }}
-                          >
-                            {formatHeure(call.intervention_date)}
-                          </div>
+                          {JOURS_LABELS[jour.getDay() === 0 ? 6 : jour.getDay() - 1]}{" "}
+                          {jour.getDate()}/{jour.getMonth() + 1}
+                        </div>
 
-                          <strong
-                            style={{
-                              display: "block",
-                              color: "#0f172a",
-                              fontSize: "14px",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            {call.client_name || "Client non renseigné"}
-                          </strong>
-
+                        {interventionsJour.length === 0 ? (
                           <p
                             style={{
                               margin: 0,
-                              color: "#64748b",
-                              fontSize: "13px",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {call.problem || "-"}
-                          </p>
-
-                          <Link
-                            href={`/interventions/${call.id}`}
-                            style={{
-                              display: "inline-block",
-                              marginTop: "8px",
                               fontSize: "12px",
-                              color: "#2563eb",
-                              fontWeight: 700,
-                              textDecoration: "none",
+                              color: "#cbd5e1",
                             }}
                           >
-                            Voir →
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            —
+                          </p>
+                        ) : (
+                          <div style={{ display: "grid", gap: "6px" }}>
+                            {interventionsJour.map((call) => (
+                              <div
+                                key={call.id}
+                                draggable
+                                onDragStart={() =>
+                                  setInterventionEnGlissement(call.id)
+                                }
+                                onDragEnd={() =>
+                                  setInterventionEnGlissement(null)
+                                }
+                                style={{
+                                  padding: "6px 8px",
+                                  borderRadius: "8px",
+                                  background: "white",
+                                  border: "1px solid #e2e8f0",
+                                  borderLeft: `4px solid ${couleurUrgence(
+                                    call.urgency
+                                  )}`,
+                                  cursor: "grab",
+                                  opacity:
+                                    interventionEnGlissement === call.id
+                                      ? 0.4
+                                      : 1,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#64748b",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {formatHeure(call.intervention_date)}
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: "13px",
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {call.client_name || "Client non renseigné"}
+                                </div>
+
+                                <Link
+                                  href={`/interventions/${call.id}`}
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#2563eb",
+                                    fontWeight: 700,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Voir →
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
 
@@ -492,6 +836,36 @@ function formatDateInput(date: Date) {
   return `${annee}-${mois}-${jour}`;
 }
 
+function minutesDepuisDebut(dateISO: string) {
+  const date = new Date(dateISO);
+  return (date.getHours() - START_HOUR) * 60 + date.getMinutes();
+}
+
+function getLundiDeLaSemaine(date: Date) {
+  const copie = new Date(date);
+  const jourSemaine = copie.getDay();
+  const decalage = jourSemaine === 0 ? -6 : 1 - jourSemaine;
+
+  copie.setDate(copie.getDate() + decalage);
+  copie.setHours(0, 0, 0, 0);
+
+  return copie;
+}
+
+function formatPlageSemaine(joursSemaine: Date[]) {
+  const premier = joursSemaine[0];
+  const dernier = joursSemaine[6];
+
+  const formatteur = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+  });
+
+  return `${formatteur.format(premier)} – ${formatteur.format(
+    dernier
+  )} ${dernier.getFullYear()}`;
+}
+
 const boutonNav: React.CSSProperties = {
   padding: "10px 14px",
   borderRadius: "9px",
@@ -501,3 +875,21 @@ const boutonNav: React.CSSProperties = {
   fontWeight: 700,
   cursor: "pointer",
 };
+
+const champDate: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: "9px",
+  border: "1px solid #cbd5e1",
+  fontWeight: 700,
+};
+
+function boutonBascule(actif: boolean): React.CSSProperties {
+  return {
+    padding: "10px 18px",
+    border: "none",
+    background: actif ? "#2563eb" : "white",
+    color: actif ? "white" : "#334155",
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+}

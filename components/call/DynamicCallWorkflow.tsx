@@ -43,6 +43,7 @@ clientInstructions: string[];
 type DynamicCallWorkflowProps = {
   trade?: string;
   propertyType?: string;
+  problem?: string;
 
   onResultChange?: (
     result: WorkflowResult
@@ -52,6 +53,7 @@ type DynamicCallWorkflowProps = {
 export default function DynamicCallWorkflow({
   trade = "plomberie",
   propertyType = "",
+  problem = "",
   onResultChange,
 }: DynamicCallWorkflowProps) {
 
@@ -69,6 +71,12 @@ export default function DynamicCallWorkflow({
 
   const [selectedAnswers, setSelectedAnswers] =
     useState<Record<string, WorkflowAnswer>>({});
+
+  const [detectionAuto, setDetectionAuto] =
+    useState<string | null>(null);
+
+  const [detectionSansResultat, setDetectionSansResultat] =
+    useState(false);
 
   const [loading, setLoading] =
     useState(true);
@@ -90,6 +98,234 @@ clientInstructions: [],
   useEffect(() => {
     chargerWorkflow();
   }, [trade]);
+
+  // Règles de détection automatique à partir du texte du problème.
+  // Chaque étape référence uniquement une "value" : la question réelle
+  // à laquelle elle s'applique est résolue dynamiquement, en tenant
+  // compte du type de logement (comme le ferait un agent qui répond
+  // manuellement).
+  const REGLES_AUTO: {
+    motsCles: string[];
+    label: string;
+    etapes: { value: string }[];
+  }[] = [
+    {
+      motsCles: ["lavabo"],
+      label: "fuite au lavabo",
+      etapes: [
+        { value: "fuite" },
+        { value: "interieure" },
+        { value: "lavabo" },
+      ],
+    },
+    {
+      motsCles: ["evier", "évier"],
+      label: "fuite à l'évier",
+      etapes: [
+        { value: "fuite" },
+        { value: "interieure" },
+        { value: "evier" },
+      ],
+    },
+    {
+      motsCles: [
+        "chauffe-eau",
+        "chauffe eau",
+        "ballon d'eau chaude",
+        "cumulus",
+      ],
+      label: "problème de chauffe-eau",
+      etapes: [{ value: "chauffe_eau" }],
+    },
+    {
+      motsCles: [
+        "robinet qui fuit",
+        "robinet fuit",
+        "fuite du robinet",
+        "fuite au robinet",
+      ],
+      label: "fuite de robinetterie",
+      etapes: [
+        { value: "robinetterie" },
+        { value: "fuite" },
+      ],
+    },
+    {
+      motsCles: [
+        "toilette bouchée",
+        "toilette bouché",
+        "wc bouché",
+        "wc bouchée",
+        "wc bouche",
+      ],
+      label: "canalisation bouchée (WC)",
+      etapes: [
+        { value: "canalisation_bouchee" },
+        { value: "wc" },
+      ],
+    },
+    {
+      motsCles: [
+        "canalisation bouchée",
+        "canalisation bouchee",
+        "évacuation bouchée",
+        "evacuation bouchee",
+        "tuyau bouché",
+        "tuyau bouche",
+      ],
+      label: "canalisation bouchée",
+      etapes: [{ value: "canalisation_bouchee" }],
+    },
+  ];
+
+  // Reproduit exactement les mêmes règles de branchement que
+  // choisirReponse(), pour que la détection automatique emprunte le
+  // même chemin que si l'agent avait cliqué les réponses lui-même.
+  function resoudreProchaineQuestion(
+    questionKeyActuelle: string,
+    answer: WorkflowAnswer
+  ): string | null {
+    let prochaine = answer.next_question_key;
+
+    if (questionKeyActuelle === "fuite_type") {
+      if (
+        answer.value === "interieure" &&
+        propertyType === "appartement"
+      ) {
+        prochaine = "fuite_interieur_appartement";
+      }
+
+      if (
+        answer.value === "interieure" &&
+        propertyType === "maison"
+      ) {
+        prochaine = "fuite_interieur_maison";
+      }
+
+      if (
+        answer.value === "exterieure" &&
+        propertyType === "appartement"
+      ) {
+        prochaine = "fuite_exterieur_appartement";
+      }
+
+      if (
+        answer.value === "exterieure" &&
+        propertyType === "maison"
+      ) {
+        prochaine = "fuite_exterieur_maison";
+      }
+    }
+
+    if (
+      questionKeyActuelle === "canalisation_etendue" &&
+      answer.value === "plusieurs" &&
+      propertyType === "appartement"
+    ) {
+      prochaine = "canalisation_collectif";
+    }
+
+    return prochaine;
+  }
+
+  function tenterDetectionAutomatique(
+    texteProbleme: string,
+    questionsListe: WorkflowQuestion[],
+    answersListe: WorkflowAnswer[]
+  ): {
+    reponsesPreRemplies: Record<string, WorkflowAnswer>;
+    questionDepart: string;
+    label: string;
+  } | null {
+    if (!texteProbleme.trim()) return null;
+
+    const texte = texteProbleme.toLowerCase();
+
+    for (const regle of REGLES_AUTO) {
+      const correspond = regle.motsCles.some((mot) =>
+        texte.includes(mot)
+      );
+
+      if (!correspond) continue;
+
+      const reponsesPreRemplies: Record<
+        string,
+        WorkflowAnswer
+      > = {};
+
+      let questionKeyActuelle: string | null =
+        "probleme_principal";
+
+      for (const etape of regle.etapes) {
+        if (!questionKeyActuelle) break;
+
+        const question = questionsListe.find(
+          (q) => q.question_key === questionKeyActuelle
+        );
+
+        if (!question) {
+          questionKeyActuelle = null;
+          break;
+        }
+
+        const answer = answersListe.find(
+          (a) =>
+            a.question_id === question.id &&
+            a.value === etape.value
+        );
+
+        if (!answer) {
+          questionKeyActuelle = null;
+          break;
+        }
+
+        reponsesPreRemplies[questionKeyActuelle] = answer;
+
+        questionKeyActuelle = resoudreProchaineQuestion(
+          questionKeyActuelle,
+          answer
+        );
+      }
+
+      if (questionKeyActuelle) {
+        return {
+          reponsesPreRemplies,
+          questionDepart: questionKeyActuelle,
+          label: regle.label,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function lancerDetectionAutomatique(
+    questionsListe: WorkflowQuestion[],
+    answersListe: WorkflowAnswer[]
+  ) {
+    const detection = tenterDetectionAutomatique(
+      problem,
+      questionsListe,
+      answersListe
+    );
+
+    if (!detection) {
+      return false;
+    }
+
+    setSelectedAnswers(detection.reponsesPreRemplies);
+    setCurrentQuestionKey(detection.questionDepart);
+    setDetectionAuto(detection.label);
+
+    const resultatInitial = construireResultat(
+      detection.reponsesPreRemplies
+    );
+
+    setResult(resultatInitial);
+    onResultChange?.(resultatInitial);
+
+    return true;
+  }
 
   async function chargerWorkflow() {
     setLoading(true);
@@ -212,14 +448,22 @@ clientInstructions: [],
       return;
     }
 
-    setAnswers(
-      (answersData as WorkflowAnswer[]) ||
-        []
-    );
+    const answersFinales =
+      (answersData as WorkflowAnswer[]) || [];
 
-    setCurrentQuestionKey(
-      questionsFinales[0].question_key
-    );
+    setAnswers(answersFinales);
+
+    const detectionReussie =
+      lancerDetectionAutomatique(
+        questionsFinales,
+        answersFinales
+      );
+
+    if (!detectionReussie) {
+      setCurrentQuestionKey(
+        questionsFinales[0].question_key
+      );
+    }
 
     setLoading(false);
   }
@@ -288,54 +532,10 @@ clientInstructions: [],
     );
 
     let prochaineQuestion =
-  answer.next_question_key;
-
-// Adaptation du parcours fuite au type de logement
-if (
-  currentQuestion.question_key === "fuite_type"
-) {
-  if (
-    answer.value === "interieur" &&
-    propertyType === "appartement"
-  ) {
-    prochaineQuestion =
-      "fuite_interieur_appartement";
-  }
-
-  if (
-    answer.value === "interieur" &&
-    propertyType === "maison"
-  ) {
-    prochaineQuestion =
-      "fuite_interieur_maison";
-  }
-
-  if (
-    answer.value === "interieur"&&
-    propertyType === "appartement"
-  ) {
-    prochaineQuestion =
-      "fuite_exterieur_appartement";
-  }
-
-  if (
-    answer.value === "exterieur" &&
-    propertyType === "maison"
-  ) {
-    prochaineQuestion =
-      "fuite_exterieur_maison";
-  }
-}
-
-// 🏢 Appartement : plusieurs évacuations touchées
-// → vérifier si le problème peut être collectif
-if (
-  currentQuestion.question_key === "canalisation_etendue" &&
-  answer.value === "plusieurs" &&
-  propertyType === "appartement"
-) {
-  prochaineQuestion = "canalisation_collectif";
-}
+      resoudreProchaineQuestion(
+        currentQuestion.question_key,
+        answer
+      );
 
 if (prochaineQuestion) {
   setCurrentQuestionKey(
@@ -433,6 +633,8 @@ const clientInstructions =
     }
 
     setSelectedAnswers({});
+    setDetectionAuto(null);
+    setDetectionSansResultat(false);
 
     setResult({
       intervention: "",
@@ -547,7 +749,7 @@ clientInstructions: [],
 
         {Object.keys(
           selectedAnswers
-        ).length > 0 && (
+        ).length > 0 ? (
           <button
             type="button"
             onClick={recommencer}
@@ -569,8 +771,89 @@ clientInstructions: [],
           >
             ↻ Recommencer
           </button>
+        ) : (
+          problem.trim() && (
+            <button
+              type="button"
+              onClick={() => {
+                const trouve = lancerDetectionAutomatique(
+                  questions,
+                  answers
+                );
+                setDetectionSansResultat(!trouve);
+              }}
+              style={{
+                padding: "8px 11px",
+                borderRadius: "8px",
+                border: "1px solid #cbd5e1",
+                background: "white",
+                color: "#475569",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              🔍 Analyser la description
+            </button>
+          )
         )}
       </div>
+
+      {detectionSansResultat && !detectionAuto && (
+        <div
+          style={{
+            marginBottom: "16px",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            fontSize: "13px",
+            color: "#64748b",
+          }}
+        >
+          Aucune correspondance trouvée dans la description —
+          le questionnaire complet reste disponible ci-dessous.
+        </div>
+      )}
+
+      {detectionAuto && (
+        <div
+          style={{
+            marginBottom: "16px",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            fontSize: "13px",
+            color: "#1e40af",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "10px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span>
+            🔍 Détecté automatiquement à partir de la
+            description : <strong>{detectionAuto}</strong>
+          </span>
+
+          <button
+            type="button"
+            onClick={recommencer}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "#1e40af",
+              fontWeight: 700,
+              textDecoration: "underline",
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+          >
+            Ce n'est pas ça ?
+          </button>
+        </div>
+      )}
 
       {currentQuestion ? (
         <>
