@@ -2,19 +2,14 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
+import type { CompanySettings } from "../../../lib/types";
 
-type CompanySettings = {
-  id?: string;
-  company_name: string;
-  logo_url: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  siret: string;
-  tva_number: string;
-  primary_color: string;
-};
+const METIERS_DISPONIBLES = [
+  { value: "plomberie", label: "🔧 Plomberie" },
+  { value: "electricien", label: "⚡ Électricien" },
+  { value: "serrurier", label: "🔑 Serrurier" },
+  { value: "chauffagiste", label: "🔥 Chauffagiste" },
+];
 
 const valeursInitiales: CompanySettings = {
   company_name: "",
@@ -26,6 +21,7 @@ const valeursInitiales: CompanySettings = {
   siret: "",
   tva_number: "",
   primary_color: "#2563eb",
+  trade: "plomberie",
 };
 
 export default function CompanySettingsPage() {
@@ -96,6 +92,7 @@ export default function CompanySettingsPage() {
         siret: data.siret || "",
         tva_number: data.tva_number || "",
         primary_color: data.primary_color || "#2563eb",
+        trade: data.trade || "plomberie",
       });
     }
 
@@ -130,6 +127,7 @@ export default function CompanySettingsPage() {
       siret: form.siret,
       tva_number: form.tva_number,
       primary_color: form.primary_color,
+      trade: form.trade,
       updated_at: new Date().toISOString(),
     };
 
@@ -221,6 +219,34 @@ export default function CompanySettingsPage() {
             className="w-full rounded-lg border px-4 py-3"
             placeholder="Exemple : Plomberie Martin"
           />
+        </div>
+
+        <div>
+          <label className="mb-2 block font-medium">
+            Métier
+          </label>
+
+          <select
+            value={form.trade}
+            onChange={(event) =>
+              setForm((ancienneValeur) => ({
+                ...ancienneValeur,
+                trade: event.target.value as CompanySettings["trade"],
+              }))
+            }
+            className="w-full rounded-lg border px-4 py-3"
+          >
+            {METIERS_DISPONIBLES.map((metier) => (
+              <option key={metier.value} value={metier.value}>
+                {metier.label}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-2 text-sm text-gray-500">
+            Détermine le questionnaire de diagnostic proposé lors de
+            la création d'une intervention.
+          </p>
         </div>
 
         <div>

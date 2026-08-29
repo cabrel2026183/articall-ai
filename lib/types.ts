@@ -213,6 +213,12 @@ export type InvoiceItem = {
   position?: number;
 };
 
+export type Trade =
+  | "plomberie"
+  | "electricien"
+  | "serrurier"
+  | "chauffagiste";
+
 export type CompanySettings = {
   id?: string;
   company_name: string;
@@ -224,4 +230,5 @@ export type CompanySettings = {
   siret: string;
   tva_number: string;
   primary_color: string;
+  trade: Trade;
 };

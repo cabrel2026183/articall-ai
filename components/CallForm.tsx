@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import ClientFields from "./ClientFields";
 import InterventionFields from "./InterventionFields";
 import DynamicCallWorkflow from "./call/DynamicCallWorkflow";
 import AvailabilityPicker from "./intervention/AvailabilityPicker";
 import TechnicianFields from "./TechnicianFields";
-import type { Call } from "../lib/types";
+import { supabase } from "../lib/supabase";
+import type { Call, Trade } from "../lib/types";
 
 type CallFormProps = {
   editingId: string | null;
@@ -85,6 +87,32 @@ rechercheClient: boolean;
 };
 
 export default function CallForm(props: CallFormProps) {
+  const [trade, setTrade] = useState<Trade>("plomberie");
+
+  useEffect(() => {
+    chargerMetierEntreprise();
+  }, []);
+
+  async function chargerMetierEntreprise() {
+    const { data, error } = await supabase
+      .from("company_settings")
+      .select("trade")
+      .limit(1)
+      .maybeSingle<{ trade: Trade | null }>();
+
+    if (error) {
+      console.error(
+        "Erreur chargement métier de l'entreprise :",
+        error
+      );
+      return;
+    }
+
+    if (data?.trade) {
+      setTrade(data.trade);
+    }
+  }
+
   return (
     <div
       style={{
@@ -416,7 +444,7 @@ export default function CallForm(props: CallFormProps) {
           subtitle="Questions adaptées au métier et aux réponses du client"
         >
           <DynamicCallWorkflow
-            trade="plomberie"
+            trade={trade}
             propertyType={props.propertyType}
             problem={props.problem}
             onResultChange={(result) => {
