@@ -95,10 +95,6 @@ clientInstructions: [],
       summary: "",
     });
 
-  useEffect(() => {
-    chargerWorkflow();
-  }, [trade]);
-
   // Règles de détection automatique à partir du texte du problème.
   // Chaque étape référence uniquement une "value" : la question réelle
   // à laquelle elle s'applique est résolue dynamiquement, en tenant
@@ -327,7 +323,19 @@ clientInstructions: [],
     return true;
   }
 
-  async function chargerWorkflow() {
+  useEffect(() => {
+    let annule = false;
+
+    chargerWorkflow(() => annule);
+
+    return () => {
+      annule = true;
+    };
+  }, [trade]);
+
+  async function chargerWorkflow(
+    estAnnule: () => boolean
+  ) {
     setLoading(true);
     setError("");
 
@@ -350,6 +358,8 @@ clientInstructions: [],
       })
       .limit(1)
       .maybeSingle<Workflow>();
+
+    if (estAnnule()) return;
 
     if (workflowError) {
       console.error(
@@ -385,6 +395,8 @@ clientInstructions: [],
       .order("position", {
         ascending: true,
       });
+
+    if (estAnnule()) return;
 
     if (questionsError) {
       console.error(
@@ -433,6 +445,8 @@ clientInstructions: [],
         "question_id",
         questionIds
       );
+
+    if (estAnnule()) return;
 
     if (answersError) {
       console.error(
