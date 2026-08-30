@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import NotificationBell from "./NotificationBell";
+import { supabase } from "../../lib/supabase";
 import type { AuthUser, Call } from "../../lib/types";
 
 type TopBarProps = {
@@ -12,7 +14,6 @@ type TopBarProps = {
 
 export default function TopBar({
   user,
-  role,
   calls = [],
 }: TopBarProps) {
   const [search, setSearch] = useState("");
@@ -31,10 +32,46 @@ export default function TopBar({
     return text.includes(search.toLowerCase());
   });
 
+  const [nomComplet, setNomComplet] = useState("");
+  const [menuOuvert, setMenuOuvert] = useState(false);
+
+  useEffect(() => {
+    chargerNomComplet();
+  }, [user?.id]);
+
+  async function chargerNomComplet() {
+    if (!user?.id) {
+      setNomComplet("");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("user_id", user.id)
+      .maybeSingle<{ full_name: string | null }>();
+
+    if (error) {
+      console.error(
+        "Erreur chargement nom du profil :",
+        error
+      );
+      return;
+    }
+
+    setNomComplet(data?.full_name || "");
+  }
+
+  async function deconnexion() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
   const displayName =
+    nomComplet ||
     user?.user_metadata?.full_name ||
     user?.email ||
-    "Cabrel Engome";
+    "Utilisateur";
 
   const initials = displayName
     .split(" ")
@@ -181,52 +218,131 @@ useEffect(() => {
 
         <NotificationBell calls={calls} />
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          <div
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setMenuOuvert((valeur) => !valeur)}
             style={{
-              width: "42px",
-              height: "42px",
-              borderRadius: "50%",
-              background: "#2563eb",
-              color: "white",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "bold",
+              gap: "10px",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              padding: 0,
             }}
           >
-            {initials}
-          </div>
-
-          <div>
-            <p
+            <div
               style={{
-                margin: 0,
-                fontWeight: "700",
-                color: "#0f172a",
+                width: "42px",
+                height: "42px",
+                borderRadius: "50%",
+                background: "#2563eb",
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "bold",
               }}
             >
-              {displayName}
-            </p>
+              {initials}
+            </div>
 
-            <p
+            <div style={{ textAlign: "left" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontWeight: "700",
+                  color: "#0f172a",
+                }}
+              >
+                {displayName}
+              </p>
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  color: "#64748b",
+                }}
+              >
+                Compte ⌄
+              </p>
+            </div>
+          </button>
+
+          {menuOuvert && (
+            <div
               style={{
-                margin: 0,
-                fontSize: "13px",
-                color: "#64748b",
+                position: "absolute",
+                top: "56px",
+                right: 0,
+                width: "220px",
+                background: "white",
+                borderRadius: "14px",
+                boxShadow: "0 20px 40px rgba(0,0,0,.15)",
+                border: "1px solid #e2e8f0",
+                padding: "8px",
+                zIndex: 1000,
               }}
             >
-              {role === "admin"
-                ? "Administrateur"
-                : "Technicien"}
-            </p>
-          </div>
+              <Link
+                href="/mon-compte"
+                onClick={() => setMenuOuvert(false)}
+                style={{
+                  display: "block",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  color: "#334155",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                }}
+              >
+                👤 Mon compte
+              </Link>
+
+              <Link
+                href="/parametres/securite"
+                onClick={() => setMenuOuvert(false)}
+                style={{
+                  display: "block",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  color: "#334155",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                }}
+              >
+                🔐 Sécurité
+              </Link>
+
+              <div
+                style={{
+                  borderTop: "1px solid #e2e8f0",
+                  margin: "6px 0",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={deconnexion}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "transparent",
+                  color: "#b91c1c",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                🚪 Déconnexion
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

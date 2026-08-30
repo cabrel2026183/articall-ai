@@ -110,6 +110,9 @@ export type Profile = {
   email: string | null;
   role: ProfileRole | null;
   technician_name: string | null;
+  full_name: string | null;
+  phone: string | null;
+  address: string | null;
   created_at: string;
 };
 

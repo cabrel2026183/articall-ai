@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
@@ -66,6 +67,15 @@ window.location.assign("/");
     Créer un compte
   </button>
 </div>
+
+      <div style={{ marginTop: "14px" }}>
+        <Link
+          href="/mot-de-passe-oublie"
+          style={{ color: "#2563eb", fontSize: "14px" }}
+        >
+          Mot de passe oublié ?
+        </Link>
+      </div>
     </main>
   );
 }
