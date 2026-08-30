@@ -19,7 +19,7 @@ const sections = [
       "Gérer les administrateurs, techniciens et collaborateurs.",
     icon: "👥",
     href: "/parametres/utilisateurs",
-    disponible: false,
+    disponible: true,
   },
   {
     title: "Intelligence artificielle",
@@ -59,7 +59,7 @@ const sections = [
       "Modifier le mot de passe et gérer les accès au compte.",
     icon: "🔐",
     href: "/parametres/securite",
-    disponible: false,
+    disponible: true,
   },
 ];
 
