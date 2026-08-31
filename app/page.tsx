@@ -8,6 +8,7 @@ import MainLayout from "../components/MainLayout";
 import TechnicianDashboard from "../components/technician/TechnicianDashboard";
 import CalendarView from "../components/CalendarView";
 import Filters from "../components/Filters";
+import MarketingHomePage from "../components/marketing/MarketingHomePage";
 import {
   Suspense,
   useEffect,
@@ -381,7 +382,8 @@ setCountry("France");
     } = await supabase.auth.getUser();
 
     if (!user) {
-      window.location.href = "/login";
+      setUser(null);
+      setLoading(false);
       return;
     }
 
@@ -405,6 +407,11 @@ chargerAppels(roleFinal, profile?.technician_name);
 if (loading) {
  return <main style={{ padding: "40px" }}>Chargement...</main>;
 }
+
+if (!user) {
+  return <MarketingHomePage />;
+}
+
 function afficherDate(date: string) {
   return new Date(date).toLocaleString("fr-FR", {
     dateStyle: "short",
