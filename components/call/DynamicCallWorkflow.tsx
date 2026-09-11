@@ -44,6 +44,7 @@ type DynamicCallWorkflowProps = {
   trade?: string;
   propertyType?: string;
   problem?: string;
+  detectionAutoActive?: boolean;
 
   onResultChange?: (
     result: WorkflowResult
@@ -54,6 +55,7 @@ export default function DynamicCallWorkflow({
   trade = "plomberie",
   propertyType = "",
   problem = "",
+  detectionAutoActive = true,
   onResultChange,
 }: DynamicCallWorkflowProps) {
 
@@ -467,11 +469,12 @@ clientInstructions: [],
 
     setAnswers(answersFinales);
 
-    const detectionReussie =
-      lancerDetectionAutomatique(
-        questionsFinales,
-        answersFinales
-      );
+    const detectionReussie = detectionAutoActive
+      ? lancerDetectionAutomatique(
+          questionsFinales,
+          answersFinales
+        )
+      : false;
 
     if (!detectionReussie) {
       setCurrentQuestionKey(

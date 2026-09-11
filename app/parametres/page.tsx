@@ -27,15 +27,15 @@ const sections = [
       "Configurer les réponses automatiques et les fonctions IA.",
     icon: "🤖",
     href: "/parametres/ia",
-    disponible: false,
+    disponible: true,
   },
   {
     title: "Modèles PDF",
     description:
-      "Personnaliser les devis, factures et rapports d’intervention.",
+      "Le nom, logo et couleur de votre entreprise (réglés dans « Mon entreprise ») apparaissent automatiquement sur vos devis, factures et rapports.",
     icon: "📄",
-    href: "/parametres/modeles-pdf",
-    disponible: false,
+    href: "/parametres/entreprise",
+    disponible: true,
   },
   {
     title: "Notifications",
@@ -43,7 +43,7 @@ const sections = [
       "Configurer les e-mails, SMS, rappels et alertes.",
     icon: "🔔",
     href: "/parametres/notifications",
-    disponible: false,
+    disponible: true,
   },
   {
     title: "Abonnement",
@@ -51,7 +51,7 @@ const sections = [
       "Consulter la formule actuelle et gérer la facturation.",
     icon: "💳",
     href: "/parametres/abonnement",
-    disponible: false,
+    disponible: true,
   },
   {
     title: "Sécurité",

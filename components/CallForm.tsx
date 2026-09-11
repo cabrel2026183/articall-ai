@@ -88,6 +88,10 @@ rechercheClient: boolean;
 
 export default function CallForm(props: CallFormProps) {
   const [trade, setTrade] = useState<Trade>("plomberie");
+  const [detectionAutoActive, setDetectionAutoActive] =
+    useState(true);
+  const [attributionAutoActive, setAttributionAutoActive] =
+    useState(true);
 
   useEffect(() => {
     chargerMetierEntreprise();
@@ -96,13 +100,17 @@ export default function CallForm(props: CallFormProps) {
   async function chargerMetierEntreprise() {
     const { data, error } = await supabase
       .from("company_settings")
-      .select("trade")
+      .select("trade, ia_detection_auto, ia_attribution_auto")
       .limit(1)
-      .maybeSingle<{ trade: Trade | null }>();
+      .maybeSingle<{
+        trade: Trade | null;
+        ia_detection_auto: boolean | null;
+        ia_attribution_auto: boolean | null;
+      }>();
 
     if (error) {
       console.error(
-        "Erreur chargement métier de l'entreprise :",
+        "Erreur chargement paramètres de l'entreprise :",
         error
       );
       return;
@@ -110,6 +118,14 @@ export default function CallForm(props: CallFormProps) {
 
     if (data?.trade) {
       setTrade(data.trade);
+    }
+
+    if (data?.ia_detection_auto === false) {
+      setDetectionAutoActive(false);
+    }
+
+    if (data?.ia_attribution_auto === false) {
+      setAttributionAutoActive(false);
     }
   }
 
@@ -447,6 +463,7 @@ export default function CallForm(props: CallFormProps) {
             trade={trade}
             propertyType={props.propertyType}
             problem={props.problem}
+            detectionAutoActive={detectionAutoActive}
             onResultChange={(result) => {
               if (result.intervention) {
                 props.setProblem(result.intervention);
@@ -500,6 +517,7 @@ export default function CallForm(props: CallFormProps) {
             setInterventionDate={props.setInterventionDate}
             technician={props.technician}
             setTechnician={props.setTechnician}
+            attributionAutoActive={attributionAutoActive}
           />
         </SectionCard>
 

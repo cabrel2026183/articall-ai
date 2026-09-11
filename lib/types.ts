@@ -222,6 +222,8 @@ export type Trade =
   | "serrurier"
   | "chauffagiste";
 
+export type SubscriptionStatus = "essai" | "actif" | "suspendu";
+
 export type CompanySettings = {
   id?: string;
   company_name: string;
@@ -234,4 +236,11 @@ export type CompanySettings = {
   tva_number: string;
   primary_color: string;
   trade: Trade;
+  ia_detection_auto: boolean;
+  ia_attribution_auto: boolean;
+  notif_urgences: boolean;
+  notif_factures_impayees: boolean;
+  notif_interventions_jour: boolean;
+  subscription_plan: string;
+  subscription_status: SubscriptionStatus;
 };

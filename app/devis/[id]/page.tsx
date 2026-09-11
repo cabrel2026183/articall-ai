@@ -10,6 +10,7 @@ import type {
   Quote,
   QuoteStatus,
   AuthUser,
+  CompanySettings,
 } from "../../../lib/types";
 
 type QuoteRow = Pick<
@@ -31,6 +32,18 @@ type QuoteRow = Pick<
   | "total"
   | "created_at"
   | "valid_until"
+>;
+
+type EntrepriseInfo = Pick<
+  CompanySettings,
+  | "company_name"
+  | "logo_url"
+  | "primary_color"
+  | "address"
+  | "phone"
+  | "email"
+  | "siret"
+  | "tva_number"
 >;
 
 type QuoteItem = {
@@ -124,6 +137,9 @@ export default function QuoteDetailsPage() {
   const [error, setError] = useState("");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState("");
+  const [entreprise, setEntreprise] = useState<EntrepriseInfo | null>(
+    null
+  );
 
   useEffect(() => {
     async function chargerSession() {
@@ -159,7 +175,28 @@ export default function QuoteDetailsPage() {
     }
 
     chargerSession();
+    chargerEntreprise();
   }, []);
+
+  async function chargerEntreprise() {
+    const { data, error } = await supabase
+      .from("company_settings")
+      .select(
+        "company_name, logo_url, primary_color, address, phone, email, siret, tva_number"
+      )
+      .limit(1)
+      .maybeSingle<EntrepriseInfo>();
+
+    if (error) {
+      console.error(
+        "Erreur chargement informations entreprise :",
+        error
+      );
+      return;
+    }
+
+    setEntreprise(data || null);
+  }
 
   useEffect(() => {
     if (quoteId) {
@@ -712,7 +749,9 @@ export default function QuoteDetailsPage() {
           <header
             style={{
               padding: "34px",
-              background: "linear-gradient(135deg, #0f172a, #2563eb)",
+              background: entreprise?.primary_color
+                ? entreprise.primary_color
+                : "linear-gradient(135deg, #0f172a, #2563eb)",
               color: "white",
               display: "flex",
               justifyContent: "space-between",
@@ -730,30 +769,43 @@ export default function QuoteDetailsPage() {
                   marginBottom: "20px",
                 }}
               >
-                <div
-                  style={{
-                    width: "46px",
-                    height: "46px",
-                    borderRadius: "13px",
-                    background: "white",
-                    color: "#2563eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 900,
-                    fontSize: "20px",
-                  }}
-                >
-                  A
-                </div>
+                {entreprise?.logo_url ? (
+                  <img
+                    src={entreprise.logo_url}
+                    alt={entreprise.company_name || "Logo"}
+                    style={{
+                      width: "46px",
+                      height: "46px",
+                      borderRadius: "13px",
+                      objectFit: "cover",
+                      backgroundColor: "white",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "46px",
+                      height: "46px",
+                      borderRadius: "13px",
+                      background: "white",
+                      color: entreprise?.primary_color || "#2563eb",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 900,
+                      fontSize: "20px",
+                    }}
+                  >
+                    {(entreprise?.company_name || "A")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                )}
 
                 <div>
                   <strong style={{ display: "block", fontSize: "21px" }}>
-                    ArtiCall AI
+                    {entreprise?.company_name || "Votre entreprise"}
                   </strong>
-                  <span style={{ fontSize: "13px", opacity: 0.8 }}>
-                    Gestion professionnelle des artisans
-                  </span>
                 </div>
               </div>
 
@@ -832,10 +884,26 @@ export default function QuoteDetailsPage() {
                 background="#f8fafc"
                 border="#e2e8f0"
               >
-                <h2 style={{ margin: "0 0 10px" }}>ArtiCall AI</h2>
-                <p style={secondaryText}>Votre nom d’entreprise</p>
-                <p style={secondaryText}>Votre adresse</p>
-                <p style={secondaryText}>contact@votreentreprise.fr</p>
+                <h2 style={{ margin: "0 0 10px" }}>
+                  {entreprise?.company_name || "Nom de l'entreprise non renseigné"}
+                </h2>
+                <p style={secondaryText}>
+                  {entreprise?.address || "Adresse non renseignée"}
+                </p>
+                {entreprise?.phone && (
+                  <p style={secondaryText}>{entreprise.phone}</p>
+                )}
+                <p style={secondaryText}>
+                  {entreprise?.email || "Email non renseigné"}
+                </p>
+                {entreprise?.siret && (
+                  <p style={secondaryText}>SIRET : {entreprise.siret}</p>
+                )}
+                {entreprise?.tva_number && (
+                  <p style={secondaryText}>
+                    TVA : {entreprise.tva_number}
+                  </p>
+                )}
               </DocumentCard>
 
               <DocumentCard

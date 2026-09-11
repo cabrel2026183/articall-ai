@@ -532,7 +532,7 @@ export default function PlanningPage() {
                       style={{
                         position: "relative",
                         height: `${TOTAL_MINUTES}px`,
-                        background: survolee ? "#eff6ff" : "#f8fafc",
+                        backgroundColor: survolee ? "#eff6ff" : "#f8fafc",
                         border: survolee
                           ? "2px dashed #2563eb"
                           : "1px solid #e2e8f0",

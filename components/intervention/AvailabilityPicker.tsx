@@ -24,6 +24,8 @@ type AvailabilityPickerProps = {
 
   technician: string;
   setTechnician: (value: string) => void;
+
+  attributionAutoActive?: boolean;
 };
 
 export default function AvailabilityPicker({
@@ -34,6 +36,7 @@ export default function AvailabilityPicker({
   setInterventionDate,
   technician,
   setTechnician,
+  attributionAutoActive = true,
 }: AvailabilityPickerProps) {
   const [loading, setLoading] = useState(false);
   const [creneaux, setCreneaux] = useState<string[]>([]);
@@ -49,6 +52,10 @@ export default function AvailabilityPicker({
       return;
     }
   }, [address, problem]);
+
+  if (!attributionAutoActive) {
+    return null;
+  }
 
   async function geocoderClient(adresse: string) {
   try {

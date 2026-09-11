@@ -10,7 +10,12 @@ import Link from "next/link";
 import MainLayout from "../../../components/MainLayout";
 import DocumentActions from "../../../components/documents/DocumentActions";
 import { supabase } from "../../../lib/supabase";
-import type { Invoice, InvoiceItem, PaymentStatus } from "../../../lib/types";
+import type {
+  Invoice,
+  InvoiceItem,
+  PaymentStatus,
+  CompanySettings,
+} from "../../../lib/types";
 
 type InvoiceItemRow = Pick<
   InvoiceItem,
@@ -25,6 +30,18 @@ type InvoiceItemRow = Pick<
   | "position"
 >;
 
+type EntrepriseInfo = Pick<
+  CompanySettings,
+  | "company_name"
+  | "logo_url"
+  | "primary_color"
+  | "address"
+  | "phone"
+  | "email"
+  | "siret"
+  | "tva_number"
+>;
+
 export default function FactureDetailsPage({
   params,
 }: {
@@ -36,6 +53,9 @@ export default function FactureDetailsPage({
   const [facture, setFacture] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItemRow[]>([]);
   const [quoteNumber, setQuoteNumber] = useState<string | null>(null);
+  const [entreprise, setEntreprise] = useState<EntrepriseInfo | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [miseAJourPaiement, setMiseAJourPaiement] = useState(false);
   const [erreur, setErreur] = useState("");
@@ -67,6 +87,27 @@ export default function FactureDetailsPage({
     }
 
     await chargerFacture();
+    await chargerEntreprise();
+  }
+
+  async function chargerEntreprise() {
+    const { data, error } = await supabase
+      .from("company_settings")
+      .select(
+        "company_name, logo_url, primary_color, address, phone, email, siret, tva_number"
+      )
+      .limit(1)
+      .maybeSingle<EntrepriseInfo>();
+
+    if (error) {
+      console.error(
+        "Erreur chargement informations entreprise :",
+        error
+      );
+      return;
+    }
+
+    setEntreprise(data || null);
   }
 
   async function chargerFacture() {
@@ -482,7 +523,9 @@ export default function FactureDetailsPage({
             className="facture-header"
             style={{
               padding: "22px 26px",
-              background: "linear-gradient(135deg, #0f172a, #2563eb)",
+              background: entreprise?.primary_color
+                ? entreprise.primary_color
+                : "linear-gradient(135deg, #0f172a, #2563eb)",
               color: "white",
               display: "flex",
               justifyContent: "space-between",
@@ -500,30 +543,43 @@ export default function FactureDetailsPage({
                   marginBottom: "14px",
                 }}
               >
-                <div
-                  style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "10px",
-                    backgroundColor: "white",
-                    color: "#2563eb",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: "16px",
-                    fontWeight: "900",
-                  }}
-                >
-                  A
-                </div>
+                {entreprise?.logo_url ? (
+                  <img
+                    src={entreprise.logo_url}
+                    alt={entreprise.company_name || "Logo"}
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      objectFit: "cover",
+                      backgroundColor: "white",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      backgroundColor: "white",
+                      color: entreprise?.primary_color || "#2563eb",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      fontSize: "16px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {(entreprise?.company_name || "A")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                )}
 
                 <div>
                   <strong style={{ display: "block", fontSize: "16px" }}>
-                    ArtiCall AI
+                    {entreprise?.company_name || "Votre entreprise"}
                   </strong>
-                  <span style={{ fontSize: "11px", opacity: 0.8 }}>
-                    Gestion professionnelle des artisans
-                  </span>
                 </div>
               </div>
 
@@ -591,10 +647,26 @@ export default function FactureDetailsPage({
                 fond="#f8fafc"
                 bordure="#e2e8f0"
               >
-                <h2 style={{ margin: "0 0 6px", fontSize: "15px" }}>ArtiCall AI</h2>
-                <p style={texteSecondaire}>Votre nom d’entreprise</p>
-                <p style={texteSecondaire}>Votre adresse</p>
-                <p style={texteSecondaire}>contact@votreentreprise.fr</p>
+                <h2 style={{ margin: "0 0 6px", fontSize: "15px" }}>
+                  {entreprise?.company_name || "Nom de l'entreprise non renseigné"}
+                </h2>
+                <p style={texteSecondaire}>
+                  {entreprise?.address || "Adresse non renseignée"}
+                </p>
+                {entreprise?.phone && (
+                  <p style={texteSecondaire}>{entreprise.phone}</p>
+                )}
+                <p style={texteSecondaire}>
+                  {entreprise?.email || "Email non renseigné"}
+                </p>
+                {entreprise?.siret && (
+                  <p style={texteSecondaire}>SIRET : {entreprise.siret}</p>
+                )}
+                {entreprise?.tva_number && (
+                  <p style={texteSecondaire}>
+                    TVA : {entreprise.tva_number}
+                  </p>
+                )}
               </InformationCard>
 
               <InformationCard

@@ -13,6 +13,45 @@ export default function NotificationBell({ calls = [] }: NotificationBellProps) 
   const [callsAvecFactureImpayee, setCallsAvecFactureImpayee] = useState<
     Set<string>
   >(new Set());
+  const [preferences, setPreferences] = useState({
+    urgences: true,
+    facturesImpayees: true,
+    interventionsJour: true,
+  });
+
+  useEffect(() => {
+    chargerPreferences();
+  }, []);
+
+  async function chargerPreferences() {
+    const { data, error } = await supabase
+      .from("company_settings")
+      .select(
+        "notif_urgences, notif_factures_impayees, notif_interventions_jour"
+      )
+      .limit(1)
+      .maybeSingle<{
+        notif_urgences: boolean | null;
+        notif_factures_impayees: boolean | null;
+        notif_interventions_jour: boolean | null;
+      }>();
+
+    if (error) {
+      console.error(
+        "Erreur chargement préférences notifications :",
+        error
+      );
+      return;
+    }
+
+    if (data) {
+      setPreferences({
+        urgences: data.notif_urgences ?? true,
+        facturesImpayees: data.notif_factures_impayees ?? true,
+        interventionsJour: data.notif_interventions_jour ?? true,
+      });
+    }
+  }
 
   useEffect(() => {
     chargerFacturesImpayees();
@@ -112,9 +151,19 @@ export default function NotificationBell({ calls = [] }: NotificationBellProps) 
   });
 
   const notifications = [
-    ...urgences.map((call) => `🚨 Urgence : ${call.client_name}`),
-    ...impayes.map((call) => `💰 Paiement en attente : ${call.client_name}`),
-    ...interventionsJour.map((call) => `📅 Intervention aujourd'hui : ${call.client_name}`),
+    ...(preferences.urgences
+      ? urgences.map((call) => `🚨 Urgence : ${call.client_name}`)
+      : []),
+    ...(preferences.facturesImpayees
+      ? impayes.map(
+          (call) => `💰 Paiement en attente : ${call.client_name}`
+        )
+      : []),
+    ...(preferences.interventionsJour
+      ? interventionsJour.map(
+          (call) => `📅 Intervention aujourd'hui : ${call.client_name}`
+        )
+      : []),
   ];
 
   const count = notifications.length;
