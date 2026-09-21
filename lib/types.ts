@@ -243,4 +243,5 @@ export type CompanySettings = {
   notif_interventions_jour: boolean;
   subscription_plan: string;
   subscription_status: SubscriptionStatus;
+  trial_ends_at: string | null;
 };

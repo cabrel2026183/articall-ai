@@ -6,6 +6,12 @@ import Link from "next/link";
 import type { Trade } from "../../lib/types";
 import DynamicCallWorkflow from "../call/DynamicCallWorkflow";
 import { ARTICLES } from "../../lib/articles";
+import {
+  TARIF_MENSUEL,
+  TARIF_INSTALLATION,
+  TARIF_INCLUS,
+  TARIF_ESSAI_JOURS,
+} from "../../lib/tarifs";
 
 const METIERS: {
   valeur: Trade;
@@ -571,6 +577,14 @@ export default function MarketingHomePage() {
           text-align: center;
         }
 
+        .mkt-tarif-essai {
+          display: block;
+          margin-bottom: 14px;
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--electric);
+        }
+
         .mkt-tarif-indicatif {
           display: inline-block;
           padding: 5px 14px;
@@ -1039,24 +1053,28 @@ export default function MarketingHomePage() {
         </p>
 
         <div className="mkt-tarif-card">
+          <span className="mkt-tarif-essai">
+            ✨ {TARIF_ESSAI_JOURS} jours d'essai gratuit, sans carte
+            bancaire
+          </span>
+
           <span className="mkt-tarif-indicatif">
             Tarif indicatif — à confirmer
           </span>
 
           <div className="mkt-tarif-prix">
-            49€<span> / mois</span>
+            {TARIF_MENSUEL}€<span> / mois</span>
           </div>
 
           <div className="mkt-tarif-installation">
-            + 199€ d'installation, sans engagement de durée
+            + {TARIF_INSTALLATION}€ d'installation, sans engagement de
+            durée
           </div>
 
           <ul className="mkt-tarif-liste">
-            <li>Diagnostic assisté par IA, tous métiers disponibles</li>
-            <li>Techniciens illimités</li>
-            <li>Devis et factures illimités</li>
-            <li>Planning technicien intégré</li>
-            <li>Support par email</li>
+            {TARIF_INCLUS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
 
           <Link href="/login" className="mkt-btn-primary large">
