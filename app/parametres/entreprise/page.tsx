@@ -22,6 +22,16 @@ const valeursInitiales: CompanySettings = {
   tva_number: "",
   primary_color: "#2563eb",
   trade: "plomberie",
+  ia_detection_auto: false,
+  ia_attribution_auto: false,
+  notif_urgences: true,
+  notif_factures_impayees: true,
+  notif_interventions_jour: true,
+  subscription_plan: "essai",
+  subscription_status: "essai",
+  trial_ends_at: null,
+  stripe_customer_id: null,
+  stripe_subscription_id: null,
 };
 
 export default function CompanySettingsPage() {
@@ -93,6 +103,16 @@ export default function CompanySettingsPage() {
         tva_number: data.tva_number || "",
         primary_color: data.primary_color || "#2563eb",
         trade: data.trade || "plomberie",
+        ia_detection_auto: data.ia_detection_auto ?? false,
+        ia_attribution_auto: data.ia_attribution_auto ?? false,
+        notif_urgences: data.notif_urgences ?? true,
+        notif_factures_impayees: data.notif_factures_impayees ?? true,
+        notif_interventions_jour: data.notif_interventions_jour ?? true,
+        subscription_plan: data.subscription_plan || "essai",
+        subscription_status: data.subscription_status || "essai",
+        trial_ends_at: data.trial_ends_at ?? null,
+        stripe_customer_id: data.stripe_customer_id ?? null,
+        stripe_subscription_id: data.stripe_subscription_id ?? null,
       });
     }
 
