@@ -244,4 +244,6 @@ export type CompanySettings = {
   subscription_plan: string;
   subscription_status: SubscriptionStatus;
   trial_ends_at: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
 };
