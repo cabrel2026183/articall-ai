@@ -1058,10 +1058,6 @@ export default function MarketingHomePage() {
             bancaire
           </span>
 
-          <span className="mkt-tarif-indicatif">
-            Tarif indicatif — à confirmer
-          </span>
-
           <div className="mkt-tarif-prix">
             {TARIF_MENSUEL}€<span> / mois</span>
           </div>
@@ -1081,11 +1077,6 @@ export default function MarketingHomePage() {
           <Link href="/login" className="mkt-btn-primary large">
             Essayer ArtiCall AI
           </Link>
-
-          <p className="mkt-tarif-note">
-            Prix communiqués à titre indicatif, susceptibles d'évoluer
-            avant le lancement commercial officiel.
-          </p>
         </div>
       </section>
 
