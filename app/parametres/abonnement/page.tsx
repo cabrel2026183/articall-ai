@@ -237,11 +237,13 @@ export default function AbonnementSettingsPage() {
         <div className="mb-6">
           <span className="text-3xl font-bold">{TARIF_MENSUEL} €</span>
           <span className="text-gray-500"> / mois</span>
-          <p className="mt-1 text-sm text-gray-500">
-            + {TARIF_INSTALLATION} € d'installation (tarif indicatif,
-            susceptible d'évoluer avant le lancement commercial
-            officiel)
-          </p>
+          {TARIF_INSTALLATION > 0 && (
+            <p className="mt-1 text-sm text-gray-500">
+              + {TARIF_INSTALLATION} € d'installation (tarif indicatif,
+              susceptible d'évoluer avant le lancement commercial
+              officiel)
+            </p>
+          )}
         </div>
 
         <ul className="mb-6 space-y-2 text-sm text-gray-700">

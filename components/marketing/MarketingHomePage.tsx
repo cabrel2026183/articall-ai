@@ -1049,7 +1049,7 @@ export default function MarketingHomePage() {
         <span className="mkt-section-eyebrow">Tarifs</span>
         <h2 className="mkt-section-title">Une offre simple</h2>
         <p className="mkt-section-subtitle">
-          Une installation, un abonnement mensuel — sans surprise.
+          Un seul abonnement mensuel — sans surprise, sans frais caché.
         </p>
 
         <div className="mkt-tarif-card">
@@ -1067,8 +1067,9 @@ export default function MarketingHomePage() {
           </div>
 
           <div className="mkt-tarif-installation">
-            + {TARIF_INSTALLATION}€ d'installation, sans engagement de
-            durée
+            {TARIF_INSTALLATION > 0
+              ? `+ ${TARIF_INSTALLATION}€ d'installation, sans engagement de durée`
+              : "Sans engagement de durée"}
           </div>
 
           <ul className="mkt-tarif-liste">
