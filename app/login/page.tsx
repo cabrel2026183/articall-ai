@@ -54,6 +54,25 @@ export default function LoginPage() {
     }
   }
 
+  async function envoyerEmailBienvenue(
+    adresseEmail: string,
+    nomEntreprise: string
+  ) {
+    try {
+      await fetch("/api/envoyer-email-bienvenue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: adresseEmail,
+          companyName: nomEntreprise,
+        }),
+      });
+    } catch (erreur) {
+      // On ne bloque jamais l'inscription si l'email de bienvenue échoue.
+      console.error("Erreur envoi email de bienvenue :", erreur);
+    }
+  }
+
   async function inscription(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -91,6 +110,7 @@ export default function LoginPage() {
 
     if (data.session) {
       await finaliserInscription(companyName.trim(), selectedTrade);
+      await envoyerEmailBienvenue(email, companyName.trim());
       router.push("/");
       router.refresh();
       return;
@@ -135,10 +155,14 @@ export default function LoginPage() {
           | undefined;
 
         if (meta?.pending_trade) {
-          await finaliserInscription(
-            meta.pending_company_name || "Mon entreprise",
-            meta.pending_trade
-          );
+          const nomEntreprise =
+            meta.pending_company_name || "Mon entreprise";
+
+          await finaliserInscription(nomEntreprise, meta.pending_trade);
+
+          if (data.user.email) {
+            await envoyerEmailBienvenue(data.user.email, nomEntreprise);
+          }
         }
       }
     }
