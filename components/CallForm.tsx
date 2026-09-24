@@ -86,8 +86,18 @@ setPropertyTypeOther: (value: string) => void;
 rechercheClient: boolean;
 };
 
+const LABELS_METIERS: Record<Trade, string> = {
+  plomberie: "🔧 Plomberie",
+  electricien: "⚡ Électricien",
+  serrurier: "🔑 Serrurier",
+  chauffagiste: "🔥 Chauffagiste",
+};
+
 export default function CallForm(props: CallFormProps) {
   const [trade, setTrade] = useState<Trade>("plomberie");
+  const [metiersEntreprise, setMetiersEntreprise] = useState<Trade[]>([
+    "plomberie",
+  ]);
   const [detectionAutoActive, setDetectionAutoActive] =
     useState(true);
   const [attributionAutoActive, setAttributionAutoActive] =
@@ -100,10 +110,11 @@ export default function CallForm(props: CallFormProps) {
   async function chargerMetierEntreprise() {
     const { data, error } = await supabase
       .from("company_settings")
-      .select("trade, ia_detection_auto, ia_attribution_auto")
+      .select("trade, trades, ia_detection_auto, ia_attribution_auto")
       .limit(1)
       .maybeSingle<{
         trade: Trade | null;
+        trades: Trade[] | null;
         ia_detection_auto: boolean | null;
         ia_attribution_auto: boolean | null;
       }>();
@@ -116,9 +127,15 @@ export default function CallForm(props: CallFormProps) {
       return;
     }
 
-    if (data?.trade) {
-      setTrade(data.trade);
-    }
+    const metierPrincipal: Trade = data?.trade || "plomberie";
+
+    const metiersDisponibles: Trade[] =
+      data?.trades && data.trades.length > 0
+        ? data.trades
+        : [metierPrincipal];
+
+    setMetiersEntreprise(metiersDisponibles);
+    setTrade(metierPrincipal);
 
     if (data?.ia_detection_auto === false) {
       setDetectionAutoActive(false);
@@ -459,6 +476,59 @@ export default function CallForm(props: CallFormProps) {
           title="Diagnostic assisté"
           subtitle="Questions adaptées au métier et aux réponses du client"
         >
+          {metiersEntreprise.length > 1 && (
+            <div
+              style={{
+                marginBottom: "16px",
+                padding: "14px 16px",
+                borderRadius: "12px",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <strong
+                style={{
+                  display: "block",
+                  marginBottom: "10px",
+                  color: "#0f172a",
+                }}
+              >
+                🛠️ Métier concerné par cet appel
+              </strong>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {metiersEntreprise.map((metier) => (
+                  <button
+                    key={metier}
+                    type="button"
+                    onClick={() => setTrade(metier)}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "9px",
+                      border:
+                        trade === metier
+                          ? "2px solid #2563eb"
+                          : "1px solid #cbd5e1",
+                      background:
+                        trade === metier ? "#eff6ff" : "white",
+                      color: "#334155",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {LABELS_METIERS[metier] || metier}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <DynamicCallWorkflow
             trade={trade}
             propertyType={props.propertyType}

@@ -236,6 +236,11 @@ export type CompanySettings = {
   tva_number: string;
   primary_color: string;
   trade: Trade;
+  // Tous les métiers pratiqués par l'entreprise. "trade" ci-dessus reste
+  // le métier principal (utilisé comme valeur par défaut partout où un
+  // seul métier est attendu) ; "trades" liste l'ensemble des métiers
+  // cochés dans les paramètres "Mon entreprise".
+  trades: Trade[];
   ia_detection_auto: boolean;
   ia_attribution_auto: boolean;
   notif_urgences: boolean;

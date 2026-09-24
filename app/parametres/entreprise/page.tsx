@@ -2,9 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
-import type { CompanySettings } from "../../../lib/types";
+import type { CompanySettings, Trade } from "../../../lib/types";
 
-const METIERS_DISPONIBLES = [
+const METIERS_DISPONIBLES: { value: Trade; label: string }[] = [
   { value: "plomberie", label: "🔧 Plomberie" },
   { value: "electricien", label: "⚡ Électricien" },
   { value: "serrurier", label: "🔑 Serrurier" },
@@ -22,6 +22,7 @@ const valeursInitiales: CompanySettings = {
   tva_number: "",
   primary_color: "#2563eb",
   trade: "plomberie",
+  trades: ["plomberie"],
   ia_detection_auto: false,
   ia_attribution_auto: false,
   notif_urgences: true,
@@ -91,6 +92,13 @@ export default function CompanySettingsPage() {
     }
 
     if (data) {
+      const metierPrincipal: Trade = data.trade || "plomberie";
+
+      const metiersCharges: Trade[] =
+        data.trades && data.trades.length > 0
+          ? data.trades
+          : [metierPrincipal];
+
       setForm({
         id: data.id,
         company_name: data.company_name || "",
@@ -102,7 +110,8 @@ export default function CompanySettingsPage() {
         siret: data.siret || "",
         tva_number: data.tva_number || "",
         primary_color: data.primary_color || "#2563eb",
-        trade: data.trade || "plomberie",
+        trade: metierPrincipal,
+        trades: metiersCharges,
         ia_detection_auto: data.ia_detection_auto ?? false,
         ia_attribution_auto: data.ia_attribution_auto ?? false,
         notif_urgences: data.notif_urgences ?? true,
@@ -129,6 +138,48 @@ export default function CompanySettingsPage() {
     }));
   }
 
+  function basculerMetier(metier: Trade) {
+    setForm((ancienneValeur) => {
+      const dejaCoche = ancienneValeur.trades.includes(metier);
+
+      let nouveauxMetiers: Trade[];
+
+      if (dejaCoche) {
+        // On garde toujours au moins un métier coché.
+        if (ancienneValeur.trades.length === 1) {
+          return ancienneValeur;
+        }
+
+        nouveauxMetiers = ancienneValeur.trades.filter(
+          (m) => m !== metier
+        );
+      } else {
+        nouveauxMetiers = [...ancienneValeur.trades, metier];
+      }
+
+      // Le métier principal reste le premier de la liste — s'il est
+      // décoché, on bascule automatiquement sur le suivant.
+      const nouveauMetierPrincipal = nouveauxMetiers.includes(
+        ancienneValeur.trade
+      )
+        ? ancienneValeur.trade
+        : nouveauxMetiers[0];
+
+      return {
+        ...ancienneValeur,
+        trades: nouveauxMetiers,
+        trade: nouveauMetierPrincipal,
+      };
+    });
+  }
+
+  function definirMetierPrincipal(metier: Trade) {
+    setForm((ancienneValeur) => ({
+      ...ancienneValeur,
+      trade: metier,
+    }));
+  }
+
   async function enregistrerEntreprise(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -148,6 +199,7 @@ export default function CompanySettingsPage() {
       tva_number: form.tva_number,
       primary_color: form.primary_color,
       trade: form.trade,
+      trades: form.trades,
       updated_at: new Date().toISOString(),
     };
 
@@ -243,30 +295,68 @@ export default function CompanySettingsPage() {
 
         <div>
           <label className="mb-2 block font-medium">
-            Métier
+            Métiers exercés
           </label>
 
-          <select
-            value={form.trade}
-            onChange={(event) =>
-              setForm((ancienneValeur) => ({
-                ...ancienneValeur,
-                trade: event.target.value as CompanySettings["trade"],
-              }))
-            }
-            className="w-full rounded-lg border px-4 py-3"
-          >
-            {METIERS_DISPONIBLES.map((metier) => (
-              <option key={metier.value} value={metier.value}>
-                {metier.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-wrap gap-3">
+            {METIERS_DISPONIBLES.map((metier) => {
+              const coche = form.trades.includes(metier.value);
+
+              return (
+                <label
+                  key={metier.value}
+                  className={
+                    "flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-3 " +
+                    (coche
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-300")
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={coche}
+                    onChange={() => basculerMetier(metier.value)}
+                  />
+                  {metier.label}
+                </label>
+              );
+            })}
+          </div>
 
           <p className="mt-2 text-sm text-gray-500">
-            Détermine le questionnaire de diagnostic proposé lors de
-            la création d'une intervention.
+            Cochez tous les métiers exercés par votre entreprise. Chaque
+            métier a son propre questionnaire de diagnostic.
           </p>
+
+          {form.trades.length > 1 && (
+            <div className="mt-4">
+              <label className="mb-2 block text-sm font-medium">
+                Métier principal (utilisé par défaut)
+              </label>
+
+              <select
+                value={form.trade}
+                onChange={(event) =>
+                  definirMetierPrincipal(
+                    event.target.value as Trade
+                  )
+                }
+                className="w-full rounded-lg border px-4 py-3"
+              >
+                {form.trades.map((metierValeur) => {
+                  const metier = METIERS_DISPONIBLES.find(
+                    (m) => m.value === metierValeur
+                  );
+
+                  return (
+                    <option key={metierValeur} value={metierValeur}>
+                      {metier?.label || metierValeur}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
         </div>
 
         <div>
