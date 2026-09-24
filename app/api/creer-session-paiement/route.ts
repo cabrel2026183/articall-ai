@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
 
   const token = authHeader.replace("Bearer ", "");
 
-  const supabase = createClient(
+  // Client "anonyme" utilisé uniquement pour vérifier le token de
+  // l'utilisateur qui appelle la route.
+  const supabaseAuth = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL as string,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
   );
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser(token);
+  } = await supabaseAuth.auth.getUser(token);
 
   if (userError || !user) {
     return NextResponse.json(
@@ -33,7 +35,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: profile } = await supabase
+  // Client "service_role" utilisé pour lire les données une fois
+  // l'utilisateur authentifié ci-dessus : il contourne les règles RLS,
+  // ce qui évite qu'une lecture anonyme renvoie "aucune ligne" par erreur.
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+    process.env.SUPABASE_SERVICE_ROLE_KEY as string
+  );
+
+  const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("company_id, role")
     .eq("user_id", user.id)
@@ -46,7 +56,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: entreprise } = await supabase
+  const { data: entreprise } = await supabaseAdmin
     .from("company_settings")
     .select("stripe_customer_id")
     .eq("company_id", profile.company_id)
