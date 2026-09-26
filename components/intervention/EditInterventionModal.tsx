@@ -99,6 +99,23 @@ const [country, setCountry] = useState(
   chargerTechniciens();
 }, []);
 
+  function changerDate(nouvelleDate: string) {
+    const heureActuelle =
+      interventionDate.split("T")[1] || "09:00";
+    setInterventionDate(
+      nouvelleDate ? `${nouvelleDate}T${heureActuelle}` : ""
+    );
+  }
+
+  function changerHeure(nouvelleHeure: string) {
+    const dateActuelle =
+      interventionDate.split("T")[0] ||
+      new Date().toISOString().slice(0, 10);
+    setInterventionDate(
+      nouvelleHeure ? `${dateActuelle}T${nouvelleHeure}` : ""
+    );
+  }
+
   async function enregistrer() {
     setSaving(true);
 
@@ -349,15 +366,33 @@ country: country.trim() || "France",
           rows={4}
           style={inputStyle}
         />
-<label>
-  <span style={labelStyle}>Date et heure d’intervention</span>
-  <input
-    type="datetime-local"
-    value={interventionDate}
-    onChange={(e) => setInterventionDate(e.target.value)}
-    style={inputStyle}
-  />
-</label>
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "14px",
+  }}
+>
+  <label style={{ display: "block" }}>
+    <span style={labelStyle}>Date d’intervention</span>
+    <input
+      type="date"
+      value={interventionDate.split("T")[0] || ""}
+      onChange={(e) => changerDate(e.target.value)}
+      style={inputStyle}
+    />
+  </label>
+
+  <label style={{ display: "block" }}>
+    <span style={labelStyle}>Heure d’intervention</span>
+    <input
+      type="time"
+      value={interventionDate.split("T")[1] || ""}
+      onChange={(e) => changerHeure(e.target.value)}
+      style={inputStyle}
+    />
+  </label>
+</div>
 
 {isAdmin && (
   <label>
