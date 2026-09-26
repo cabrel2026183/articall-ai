@@ -272,6 +272,32 @@ async function geocoderAdresseClient(adresse: string) {
   }
 }
 
+  async function envoyerConfirmationRdv(
+    emailClient: string,
+    nomClient: string,
+    dateIntervention: string,
+    adresse: string
+  ) {
+    try {
+      await fetch("/api/envoyer-confirmation-rdv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailClient,
+          clientName: nomClient,
+          interventionDate: dateIntervention,
+          address: adresse,
+        }),
+      });
+    } catch (erreur) {
+      // On ne bloque jamais l'enregistrement de l'appel si l'email échoue.
+      console.error(
+        "Erreur envoi email de confirmation de rendez-vous :",
+        erreur
+      );
+    }
+  }
+
   async function ajouterAppel() {
   const {
     data: { user },
@@ -356,6 +382,15 @@ workflow_summary:
   if (error) {
   alert(error.message);
 } else {
+  if (clientEmail && interventionDate) {
+    await envoyerConfirmationRdv(
+      clientEmail,
+      clientName,
+      interventionDate,
+      address
+    );
+  }
+
   setClientName("");
   setClientPhone("");
   setClientEmail("");
