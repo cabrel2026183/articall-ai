@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   ExternalLink,
   Mail,
@@ -8,6 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { supabase } from "../../lib/supabase";
 import Card from "../ui/Card";
 import type { Call } from "../../lib/types";
 
@@ -16,6 +18,30 @@ type ClientCardProps = {
 };
 
 export default function ClientCard({ call }: ClientCardProps) {
+  const [emailEntreprise, setEmailEntreprise] = useState("");
+
+  useEffect(() => {
+    async function chargerEmailEntreprise() {
+      const { data, error } = await supabase
+        .from("company_settings")
+        .select("email")
+        .limit(1)
+        .maybeSingle<{ email: string | null }>();
+
+      if (error) {
+        console.error(
+          "Erreur chargement email entreprise :",
+          error
+        );
+        return;
+      }
+
+      setEmailEntreprise(data?.email || "");
+    }
+
+    chargerEmailEntreprise();
+  }, []);
+
   const mapsUrl = call.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         call.address
@@ -46,12 +72,12 @@ export default function ClientCard({ call }: ClientCardProps) {
         call.problem ? ` concernant : ${call.problem}` : ""
       }.\n\nCordialement,`;
 
-  const adresseExpediteur = "contact@articallai.com";
+  const parametreExpediteur = emailEntreprise
+    ? `authuser=${encodeURIComponent(emailEntreprise)}&`
+    : "";
 
   const gmailUrl = call.client_email
-    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(
-        adresseExpediteur
-      )}&view=cm&fs=1&to=${encodeURIComponent(
+    ? `https://mail.google.com/mail/?${parametreExpediteur}view=cm&fs=1&to=${encodeURIComponent(
         call.client_email
       )}&su=${encodeURIComponent(objetEmail)}&body=${encodeURIComponent(
         corpsEmail
