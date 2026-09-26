@@ -22,9 +22,35 @@ export default function ClientCard({ call }: ClientCardProps) {
       )}`
     : "";
 
+  const nomClient = call.client_name || "";
+
+  const dateFormatee = call.intervention_date
+    ? new Date(call.intervention_date).toLocaleString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+
+  const objetEmail = dateFormatee
+    ? "Votre rendez-vous d'intervention"
+    : "Votre intervention";
+
+  const corpsEmail = dateFormatee
+    ? `Bonjour ${nomClient},\n\nJe vous confirme notre rendez-vous prévu le ${dateFormatee}${
+        call.address ? ` à l'adresse suivante : ${call.address}` : ""
+      }.\n\nN'hésitez pas à me contacter si vous avez la moindre question.\n\nCordialement,`
+    : `Bonjour ${nomClient},\n\nJe reviens vers vous au sujet de votre intervention${
+        call.problem ? ` concernant : ${call.problem}` : ""
+      }.\n\nCordialement,`;
+
   const gmailUrl = call.client_email
     ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
         call.client_email
+      )}&su=${encodeURIComponent(objetEmail)}&body=${encodeURIComponent(
+        corpsEmail
       )}`
     : "";
 
