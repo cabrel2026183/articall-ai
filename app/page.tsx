@@ -298,7 +298,35 @@ async function geocoderAdresseClient(adresse: string) {
     }
   }
 
+  async function envoyerNotificationUrgence(
+    nomClient: string,
+    telephoneClient: string,
+    probleme: string,
+    adresse: string
+  ) {
+    try {
+      await fetch("/api/envoyer-notification-urgence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: nomClient,
+          clientPhone: telephoneClient,
+          problem: probleme,
+          address: adresse,
+        }),
+      });
+    } catch (erreur) {
+      // On ne bloque jamais l'enregistrement de l'appel si l'email échoue.
+      console.error(
+        "Erreur envoi email de notification d'urgence :",
+        erreur
+      );
+    }
+  }
+
   async function ajouterAppel() {
+  const nouvelleIntervention = !editingId;
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -387,6 +415,15 @@ workflow_summary:
       clientEmail,
       clientName,
       interventionDate,
+      address
+    );
+  }
+
+  if (nouvelleIntervention && urgency === "urgent") {
+    await envoyerNotificationUrgence(
+      clientName,
+      clientPhone,
+      problem,
       address
     );
   }
