@@ -22,6 +22,12 @@ export default function ClientCard({ call }: ClientCardProps) {
       )}`
     : "";
 
+  const gmailUrl = call.client_email
+    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+        call.client_email
+      )}`
+    : "";
+
   return (
     <Card>
       <div className="mb-5 flex items-center gap-3">
@@ -73,7 +79,9 @@ export default function ClientCard({ call }: ClientCardProps) {
 
         {call.client_email && (
           <a
-            href={`mailto:${call.client_email}`}
+            href={gmailUrl}
+            target="_blank"
+            rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             <Mail size={17} />
