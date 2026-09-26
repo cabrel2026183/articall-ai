@@ -46,8 +46,12 @@ export default function ClientCard({ call }: ClientCardProps) {
         call.problem ? ` concernant : ${call.problem}` : ""
       }.\n\nCordialement,`;
 
+  const adresseExpediteur = "contact@articallai.com";
+
   const gmailUrl = call.client_email
-    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(
+        adresseExpediteur
+      )}&view=cm&fs=1&to=${encodeURIComponent(
         call.client_email
       )}&su=${encodeURIComponent(objetEmail)}&body=${encodeURIComponent(
         corpsEmail
