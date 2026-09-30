@@ -1,9 +1,12 @@
-// API route : envoi d'un devis par email au client.
+// API route : envoi d'un devis par email au client, avec le devis en
+// pièce jointe PDF.
 //
 // Appelée depuis app/devis/[id]/page.tsx au clic sur "Envoyer par email".
-// Récupère le devis, ses prestations et les infos de l'entreprise
-// directement depuis Supabase (on ne fait confiance qu'au quoteId transmis,
-// jamais aux données du devis envoyées par le client).
+// Le PDF est généré côté client (html2canvas + jsPDF, qui ont besoin d'un
+// DOM navigateur) puis transmis ici en base64 pour être joint à l'email.
+// Le reste (montants, coordonnées) est récupéré directement depuis
+// Supabase, on ne fait confiance qu'au quoteId transmis, jamais aux
+// données du devis envoyées par le client.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -34,7 +37,7 @@ const formatDate = (valeur: string | null) => {
 
 export async function POST(request: Request) {
   try {
-    const { quoteId } = await request.json();
+    const { quoteId, pdfBase64, nomFichier } = await request.json();
 
     if (!quoteId) {
       return NextResponse.json(
@@ -104,18 +107,33 @@ export async function POST(request: Request) {
       })
       .join("");
 
+    const piecesJointes =
+      typeof pdfBase64 === "string" && pdfBase64.length > 0
+        ? [
+            {
+              filename:
+                typeof nomFichier === "string" && nomFichier.length > 0
+                  ? nomFichier
+                  : `${numeroDevis}.pdf`,
+              content: pdfBase64,
+            },
+          ]
+        : undefined;
+
     const { error } = await resend.emails.send({
       from: EMAIL_EXPEDITEUR,
       to: quote.client_email,
       subject: `Votre devis ${numeroDevis} — ${nomEntreprise}`,
+      attachments: piecesJointes,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; color: #0f172a;">
           <h1 style="font-size: 22px; margin-bottom: 12px;">Votre devis</h1>
 
           <p style="font-size: 15px; line-height: 1.6;">
             Bonjour ${nomClient},<br /><br />
-            Veuillez trouver ci-dessous le récapitulatif de votre devis
-            <strong>${numeroDevis}</strong> établi par ${nomEntreprise}.
+            Veuillez trouver ci-joint votre devis
+            <strong>${numeroDevis}</strong> établi par ${nomEntreprise}, au format PDF.
+            Vous en trouverez également le récapitulatif ci-dessous.
           </p>
 
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">

@@ -6,6 +6,7 @@ import DocumentActions from "../../../components/documents/DocumentActions";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../../lib/supabase";
+import { genererPdfDepuisElement } from "../../../lib/pdf";
 import type {
   Quote,
   QuoteStatus,
@@ -445,6 +446,10 @@ export default function QuoteDetailsPage() {
     }
   };
 
+  const numeroDevis = quote
+    ? quote.quote_number || `DEV-${quote.id.slice(0, 8)}`
+    : "";
+
   const envoyerParEmail = async () => {
     if (!quote || envoiEmail) return;
 
@@ -453,14 +458,31 @@ export default function QuoteDetailsPage() {
       return;
     }
 
+    if (!devisRef.current) {
+      alert("Le document du devis est introuvable.");
+      return;
+    }
+
     setEnvoiEmail(true);
     setError("");
 
     try {
+      const pdf = await genererPdfDepuisElement(devisRef.current);
+
+      if (!pdf) {
+        setError("Impossible de générer le PDF du devis.");
+        setEnvoiEmail(false);
+        return;
+      }
+
       const response = await fetch("/api/envoyer-devis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({
+          quoteId: quote.id,
+          pdfBase64: pdf.base64,
+          nomFichier: `${numeroDevis}.pdf`,
+        }),
       });
 
       const data = await response.json();
@@ -479,7 +501,7 @@ export default function QuoteDetailsPage() {
         await updateStatus("sent");
       }
 
-      alert("✅ Devis envoyé par email au client.");
+      alert("✅ Devis envoyé par email au client (en pièce jointe PDF).");
     } catch (envoiError) {
       setError(
         envoiError instanceof Error
@@ -497,66 +519,14 @@ export default function QuoteDetailsPage() {
     try {
       setTelechargement(true);
 
-      const html2canvasModule = await import("html2canvas");
-      const jsPDFModule = await import("jspdf");
+      const pdf = await genererPdfDepuisElement(devisRef.current);
 
-      const html2canvas = html2canvasModule.default;
-      const jsPDF = jsPDFModule.default;
-
-      const canvas = await html2canvas(devisRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-
-      const imageData = canvas.toDataURL("image/jpeg", 0.95);
-
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      const margin = 8;
-      const imageWidth = pageWidth - margin * 2;
-      const imageHeight = (canvas.height * imageWidth) / canvas.width;
-
-      let remainingHeight = imageHeight;
-      let positionY = margin;
-
-      pdf.addImage(
-        imageData,
-        "JPEG",
-        margin,
-        positionY,
-        imageWidth,
-        imageHeight
-      );
-
-      remainingHeight -= pageHeight - margin * 2;
-
-      while (remainingHeight > 0) {
-        pdf.addPage();
-        positionY = margin - (imageHeight - remainingHeight);
-
-        pdf.addImage(
-          imageData,
-          "JPEG",
-          margin,
-          positionY,
-          imageWidth,
-          imageHeight
-        );
-
-        remainingHeight -= pageHeight - margin * 2;
+      if (!pdf) {
+        alert("Impossible de générer le PDF.");
+        return;
       }
 
-      const numero = quote.quote_number || `DEV-${quote.id.slice(0, 8)}`;
-      pdf.save(`${numero}.pdf`);
+      pdf.declencherTelechargement(`${numeroDevis}.pdf`);
     } catch (pdfError) {
       alert(
         pdfError instanceof Error

@@ -10,6 +10,7 @@ import Link from "next/link";
 import MainLayout from "../../../components/MainLayout";
 import DocumentActions from "../../../components/documents/DocumentActions";
 import { supabase } from "../../../lib/supabase";
+import { genererPdfDepuisElement } from "../../../lib/pdf";
 import type {
   Invoice,
   InvoiceItem,
@@ -238,8 +239,12 @@ export default function FactureDetailsPage({
     });
 
     setMiseAJourPaiement(false);
-    
+
   }
+
+  const numeroFacture = facture
+    ? facture.invoice_number || `FAC-${facture.id.slice(0, 8)}`
+    : "";
 
   async function envoyerParEmail() {
     if (!facture || envoiEmail) return;
@@ -249,14 +254,31 @@ export default function FactureDetailsPage({
       return;
     }
 
+    if (!factureRef.current) {
+      alert("Le document de la facture est introuvable.");
+      return;
+    }
+
     setEnvoiEmail(true);
     setErreur("");
 
     try {
+      const pdf = await genererPdfDepuisElement(factureRef.current);
+
+      if (!pdf) {
+        setErreur("Impossible de générer le PDF de la facture.");
+        setEnvoiEmail(false);
+        return;
+      }
+
       const response = await fetch("/api/envoyer-facture", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId: facture.id }),
+        body: JSON.stringify({
+          invoiceId: facture.id,
+          pdfBase64: pdf.base64,
+          nomFichier: `${numeroFacture}.pdf`,
+        }),
       });
 
       const data = await response.json();
@@ -271,7 +293,7 @@ export default function FactureDetailsPage({
         return;
       }
 
-      alert("✅ Facture envoyée par email au client.");
+      alert("✅ Facture envoyée par email au client (en pièce jointe PDF).");
     } catch (envoiError) {
       setErreur(
         envoiError instanceof Error
@@ -297,97 +319,13 @@ export default function FactureDetailsPage({
   try {
     setTelechargement(true);
 
-    const html2canvasModule = await import("html2canvas");
-    const jsPDFModule = await import("jspdf");
+    const pdf = await genererPdfDepuisElement(factureRef.current);
 
-    const html2canvas = html2canvasModule.default;
-    const jsPDF = jsPDFModule.default;
-
-    const canvas = await html2canvas(
-      factureRef.current,
-      {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: true,
-        windowWidth:
-          factureRef.current.scrollWidth,
-        windowHeight:
-          factureRef.current.scrollHeight,
-      }
-    );
-
-    if (!canvas.width || !canvas.height) {
-      throw new Error(
-        "La capture de la facture est vide."
-      );
+    if (!pdf) {
+      throw new Error("La capture de la facture est vide.");
     }
 
-    const imageData = canvas.toDataURL(
-      "image/jpeg",
-      0.95
-    );
-
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const largeurPage =
-      pdf.internal.pageSize.getWidth();
-
-    const hauteurPage =
-      pdf.internal.pageSize.getHeight();
-
-    const marge = 8;
-    const largeurDisponible =
-      largeurPage - marge * 2;
-
-    const hauteurImage =
-      (canvas.height * largeurDisponible) /
-      canvas.width;
-
-    let positionY = marge;
-    let hauteurRestante = hauteurImage;
-
-    pdf.addImage(
-      imageData,
-      "JPEG",
-      marge,
-      positionY,
-      largeurDisponible,
-      hauteurImage
-    );
-
-    hauteurRestante -=
-      hauteurPage - marge * 2;
-
-    while (hauteurRestante > 0) {
-      pdf.addPage();
-
-      positionY =
-        marge -
-        (hauteurImage - hauteurRestante);
-
-      pdf.addImage(
-        imageData,
-        "JPEG",
-        marge,
-        positionY,
-        largeurDisponible,
-        hauteurImage
-      );
-
-      hauteurRestante -=
-        hauteurPage - marge * 2;
-    }
-
-    const numeroFacture =
-      facture.invoice_number ||
-      `FAC-${facture.id.slice(0, 8)}`;
-
-    pdf.save(`${numeroFacture}.pdf`);
+    pdf.declencherTelechargement(`${numeroFacture}.pdf`);
   } catch (error) {
     console.error(
       "ERREUR TÉLÉCHARGEMENT PDF :",

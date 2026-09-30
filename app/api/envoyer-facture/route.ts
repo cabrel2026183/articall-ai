@@ -1,9 +1,12 @@
-// API route : envoi d'une facture par email au client.
+// API route : envoi d'une facture par email au client, avec la facture
+// en pièce jointe PDF.
 //
 // Appelée depuis app/factures/[id]/page.tsx au clic sur "Envoyer par email".
-// Récupère la facture, ses prestations et les infos de l'entreprise
-// directement depuis Supabase (on ne fait confiance qu'à l'invoiceId
-// transmis, jamais aux données envoyées par le client).
+// Le PDF est généré côté client (html2canvas + jsPDF, qui ont besoin d'un
+// DOM navigateur) puis transmis ici en base64 pour être joint à l'email.
+// Le reste (montants, coordonnées) est récupéré directement depuis
+// Supabase, on ne fait confiance qu'à l'invoiceId transmis, jamais aux
+// données envoyées par le client.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -34,7 +37,7 @@ const formatDate = (valeur: string | null) => {
 
 export async function POST(request: Request) {
   try {
-    const { invoiceId } = await request.json();
+    const { invoiceId, pdfBase64, nomFichier } = await request.json();
 
     if (!invoiceId) {
       return NextResponse.json(
@@ -105,18 +108,33 @@ export async function POST(request: Request) {
       })
       .join("");
 
+    const piecesJointes =
+      typeof pdfBase64 === "string" && pdfBase64.length > 0
+        ? [
+            {
+              filename:
+                typeof nomFichier === "string" && nomFichier.length > 0
+                  ? nomFichier
+                  : `${numeroFacture}.pdf`,
+              content: pdfBase64,
+            },
+          ]
+        : undefined;
+
     const { error } = await resend.emails.send({
       from: EMAIL_EXPEDITEUR,
       to: facture.customer_email,
       subject: `Votre facture ${numeroFacture} — ${nomEntreprise}`,
+      attachments: piecesJointes,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; color: #0f172a;">
           <h1 style="font-size: 22px; margin-bottom: 12px;">Votre facture</h1>
 
           <p style="font-size: 15px; line-height: 1.6;">
             Bonjour ${nomClient},<br /><br />
-            Veuillez trouver ci-dessous le récapitulatif de votre facture
-            <strong>${numeroFacture}</strong> établie par ${nomEntreprise}.
+            Veuillez trouver ci-joint votre facture
+            <strong>${numeroFacture}</strong> établie par ${nomEntreprise}, au format PDF.
+            Vous en trouverez également le récapitulatif ci-dessous.
           </p>
 
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
