@@ -58,6 +58,7 @@ export default function FactureDetailsPage({
   );
   const [loading, setLoading] = useState(true);
   const [miseAJourPaiement, setMiseAJourPaiement] = useState(false);
+  const [envoiEmail, setEnvoiEmail] = useState(false);
   const [erreur, setErreur] = useState("");
 
   useEffect(() => {
@@ -238,6 +239,48 @@ export default function FactureDetailsPage({
 
     setMiseAJourPaiement(false);
     
+  }
+
+  async function envoyerParEmail() {
+    if (!facture || envoiEmail) return;
+
+    if (!facture.customer_email) {
+      alert("Ce client n'a pas d'adresse email renseignée.");
+      return;
+    }
+
+    setEnvoiEmail(true);
+    setErreur("");
+
+    try {
+      const response = await fetch("/api/envoyer-facture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: facture.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErreur(
+          `Impossible d'envoyer la facture : ${
+            data.error || "Erreur inconnue"
+          }`
+        );
+        setEnvoiEmail(false);
+        return;
+      }
+
+      alert("✅ Facture envoyée par email au client.");
+    } catch (envoiError) {
+      setErreur(
+        envoiError instanceof Error
+          ? envoiError.message
+          : "Impossible d'envoyer la facture par email."
+      );
+    } finally {
+      setEnvoiEmail(false);
+    }
   }
 
   async function telechargerPDF() {
@@ -506,6 +549,43 @@ export default function FactureDetailsPage({
   onTelecharger={telechargerPDF}
   onImprimer={() => window.print()}
 />
+
+        <div
+          className="facture-no-print"
+          style={{
+            maxWidth: "1000px",
+            margin: "0 auto 18px",
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <button
+            type="button"
+            onClick={envoyerParEmail}
+            disabled={envoiEmail || !facture.customer_email}
+            title={
+              !facture.customer_email
+                ? "Ce client n'a pas d'adresse email renseignée"
+                : undefined
+            }
+            style={{
+              padding: "11px 15px",
+              borderRadius: "10px",
+              border: "1px solid #cbd5e1",
+              background: "white",
+              color: "#334155",
+              fontWeight: 700,
+              cursor:
+                envoiEmail || !facture.customer_email
+                  ? "not-allowed"
+                  : "pointer",
+              opacity:
+                envoiEmail || !facture.customer_email ? 0.65 : 1,
+            }}
+          >
+            {envoiEmail ? "Envoi..." : "📧 Envoyer par email"}
+          </button>
+        </div>
 
        <div
   ref={factureRef}

@@ -133,6 +133,7 @@ export default function QuoteDetailsPage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [envoiEmail, setEnvoiEmail] = useState(false);
   const [telechargement, setTelechargement] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -444,6 +445,52 @@ export default function QuoteDetailsPage() {
     }
   };
 
+  const envoyerParEmail = async () => {
+    if (!quote || envoiEmail) return;
+
+    if (!quote.client_email) {
+      alert("Ce client n'a pas d'adresse email renseignée.");
+      return;
+    }
+
+    setEnvoiEmail(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/envoyer-devis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteId: quote.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          `Impossible d'envoyer le devis : ${
+            data.error || "Erreur inconnue"
+          }`
+        );
+        setEnvoiEmail(false);
+        return;
+      }
+
+      if (!quote.status || quote.status === "draft") {
+        await updateStatus("sent");
+      }
+
+      alert("✅ Devis envoyé par email au client.");
+    } catch (envoiError) {
+      setError(
+        envoiError instanceof Error
+          ? envoiError.message
+          : "Impossible d'envoyer le devis par email."
+      );
+    } finally {
+      setEnvoiEmail(false);
+    }
+  };
+
   const telechargerPDF = async () => {
     if (!devisRef.current || !quote) return;
 
@@ -680,6 +727,32 @@ export default function QuoteDetailsPage() {
           >
             ✏️ Modifier
           </Link>
+
+          <button
+            type="button"
+            onClick={envoyerParEmail}
+            disabled={envoiEmail || !quote.client_email}
+            title={
+              !quote.client_email
+                ? "Ce client n'a pas d'adresse email renseignée"
+                : undefined
+            }
+            style={{
+              padding: "11px 15px",
+              borderRadius: "10px",
+              border: "1px solid #cbd5e1",
+              background: "white",
+              color: "#334155",
+              fontWeight: 700,
+              cursor:
+                envoiEmail || !quote.client_email
+                  ? "not-allowed"
+                  : "pointer",
+              opacity: envoiEmail || !quote.client_email ? 0.65 : 1,
+            }}
+          >
+            {envoiEmail ? "Envoi..." : "📧 Envoyer par email"}
+          </button>
 
           <button
             type="button"
