@@ -873,16 +873,17 @@ export default function QuoteDetailsPage() {
     style={{
       marginTop: "8px",
       fontSize: "14px",
-      color: "#64748b",
+      color: "white",
+      opacity: 0.9,
     }}
   >
     Intervention d'origine :{" "}
     <Link
       href={`/interventions/${quote.call_id}`}
       style={{
-        color: "#2563eb",
+        color: "white",
         fontWeight: 800,
-        textDecoration: "none",
+        textDecoration: "underline",
       }}
     >
       Voir la fiche
