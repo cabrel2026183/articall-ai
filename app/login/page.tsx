@@ -15,6 +15,7 @@ const METIERS: { valeur: Trade; icone: string; nom: string }[] = [
 type PendingMetadata = {
   pending_company_name?: string;
   pending_trade?: string;
+  pending_technician_skills?: string[];
 };
 
 export default function LoginPage() {
@@ -54,6 +55,16 @@ export default function LoginPage() {
     }
   }
 
+  async function lierCompteTechnicien(competences: string[]) {
+    const { error } = await supabase.rpc("lier_compte_technicien", {
+      p_skills: competences,
+    });
+
+    if (error) {
+      console.error("Erreur rattachement technicien :", error);
+    }
+  }
+
   async function envoyerEmailBienvenue(
     adresseEmail: string,
     nomEntreprise: string
@@ -71,6 +82,22 @@ export default function LoginPage() {
       // On ne bloque jamais l'inscription si l'email de bienvenue échoue.
       console.error("Erreur envoi email de bienvenue :", erreur);
     }
+  }
+
+  async function redirigerSelonRole(userId: string) {
+    const { data: profil } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (profil?.role === "technicien") {
+      router.push("/technicien");
+    } else {
+      router.push("/");
+    }
+
+    router.refresh();
   }
 
   async function inscription(event: FormEvent<HTMLFormElement>) {
@@ -163,8 +190,16 @@ export default function LoginPage() {
           if (data.user.email) {
             await envoyerEmailBienvenue(data.user.email, nomEntreprise);
           }
+        } else if (
+          meta?.pending_technician_skills &&
+          meta.pending_technician_skills.length > 0
+        ) {
+          await lierCompteTechnicien(meta.pending_technician_skills);
         }
       }
+
+      await redirigerSelonRole(data.user.id);
+      return;
     }
 
     router.push("/");
@@ -266,6 +301,7 @@ export default function LoginPage() {
         .login-mode-toggle {
           font-size: 13px;
           color: var(--slate);
+          text-align: right;
         }
 
         .login-mode-toggle button {
@@ -281,6 +317,25 @@ export default function LoginPage() {
 
         .login-mode-toggle button:hover {
           text-decoration: underline;
+        }
+
+        .login-mode-toggle a {
+          color: var(--electric);
+          font-weight: 700;
+          font-size: 13px;
+          text-decoration: none;
+          margin-left: 6px;
+        }
+
+        .login-mode-toggle a:hover {
+          text-decoration: underline;
+        }
+
+        .login-technicien-link {
+          display: block;
+          margin-top: 4px;
+          font-size: 12px;
+          color: var(--slate);
         }
 
         .login-main {
@@ -525,6 +580,11 @@ export default function LoginPage() {
               </button>
             </>
           )}
+
+          <span className="login-technicien-link">
+            Vous êtes technicien ?
+            <a href="/inscription-technicien"> Inscrivez-vous ici</a>
+          </span>
         </div>
       </header>
 
