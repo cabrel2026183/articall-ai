@@ -6,6 +6,7 @@ import Card from "../ui/Card";
 import Badge from "../ui/Badge";
 import { supabase } from "../../lib/supabase";
 import type { Call, Quote, Invoice } from "../../lib/types";
+import { useEstAdmin } from "../../lib/useEstAdmin";
 
 type PaymentCardProps = {
   call: Call;
@@ -27,14 +28,17 @@ export default function PaymentCard({
   const [quote, setQuote] = useState<QuoteResume | null>(null);
   const [invoice, setInvoice] = useState<InvoiceResume | null>(null);
   const [loadingQuote, setLoadingQuote] = useState(true);
+  const estAdmin = useEstAdmin();
 
   const hasInvoice = Boolean(invoice);
 
   const isPaid = invoice?.status === "paye";
 
   useEffect(() => {
+    if (estAdmin !== true) return;
     chargerDevis();
-  }, [call.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call.id, estAdmin]);
 
   async function chargerDevis() {
     setLoadingQuote(true);
@@ -98,6 +102,11 @@ export default function PaymentCard({
 
   const quoteAccepted =
     quote?.status === "accepted";
+
+  // Les techniciens ne voient ni devis, ni facture, ni montant.
+  if (estAdmin !== true) {
+    return null;
+  }
 
   return (
     <Card>

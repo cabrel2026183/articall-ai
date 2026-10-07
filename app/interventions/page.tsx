@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import type { Call } from "../../lib/types";
+import { useEstAdmin } from "../../lib/useEstAdmin";
 
 type FactureResume = {
   total_amount: number | null;
@@ -16,8 +17,11 @@ export default function InterventionsPage() {
     Map<string, FactureResume>
   >(new Map());
   const [loading, setLoading] = useState(true);
+  const estAdmin = useEstAdmin();
 
   useEffect(() => {
+    if (estAdmin === null) return;
+
     async function chargerInterventions() {
       const { data, error } = await supabase
         .from("calls")
@@ -36,7 +40,10 @@ export default function InterventionsPage() {
       const interventions = (data as Call[]) || [];
       setCalls(interventions);
 
-      await chargerFacturesLiees(interventions);
+      // Les techniciens ne voient aucun montant : on ne charge pas les factures.
+      if (estAdmin) {
+        await chargerFacturesLiees(interventions);
+      }
 
       setLoading(false);
     }
@@ -129,7 +136,7 @@ export default function InterventionsPage() {
     }
 
     chargerInterventions();
-  }, []);
+  }, [estAdmin]);
 
   function afficherDate(date: string | null) {
     if (!date) return "Non renseignée";
@@ -236,7 +243,7 @@ export default function InterventionsPage() {
                   <th style={th}>Téléphone</th>
                   <th style={th}>Intervention</th>
                   <th style={th}>Date</th>
-                  <th style={th}>Montant</th>
+                  {estAdmin && <th style={th}>Montant</th>}
                   <th style={th}>Statut</th>
                   <th style={th}>Action</th>
                 </tr>
@@ -273,9 +280,11 @@ export default function InterventionsPage() {
                       )}
                     </td>
 
-                    <td style={td}>
-                      {afficherMontant(call.id)}
-                    </td>
+                    {estAdmin && (
+                      <td style={td}>
+                        {afficherMontant(call.id)}
+                      </td>
+                    )}
 
                     <td style={td}>
                       {call.status || "Nouveau"}

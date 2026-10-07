@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import type { Call } from "../../lib/types";
+import { useEstAdmin } from "../../lib/useEstAdmin";
 
 type HeaderProps = {
   call: Call;
@@ -24,10 +25,18 @@ type FactureResume = {
 export default function Header({ call }: HeaderProps) {
   const [copied, setCopied] = useState(false);
   const [facture, setFacture] = useState<FactureResume | null>(null);
+  const estAdmin = useEstAdmin();
 
   useEffect(() => {
+    // Les techniciens ne voient aucun montant : on ne charge rien.
+    if (estAdmin !== true) {
+      setFacture(null);
+      return;
+    }
+
     chargerFactureLiee();
-  }, [call?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call?.id, estAdmin]);
 
   async function chargerFactureLiee() {
     if (!call?.id) {
@@ -279,25 +288,28 @@ export default function Header({ call }: HeaderProps) {
           value={technician}
         />
 
-        {/* MONTANT */}
-        <InfoCard
-          icon={<CircleDollarSign size={18} />}
-          label="Montant"
-          value={amount}
-        />
+        {/* MONTANT + PAIEMENT : réservés à l'administrateur */}
+        {estAdmin === true && (
+          <>
+            <InfoCard
+              icon={<CircleDollarSign size={18} />}
+              label="Montant"
+              value={amount}
+            />
 
-        {/* PAIEMENT */}
-        <InfoCard
-          icon={<Clock3 size={18} />}
-          label="Paiement"
-          value={
-            !facture
-              ? "Aucune facture"
-              : facture.status === "paye"
-                ? "Payé"
-                : "Non payé"
-          }
-        />
+            <InfoCard
+              icon={<Clock3 size={18} />}
+              label="Paiement"
+              value={
+                !facture
+                  ? "Aucune facture"
+                  : facture.status === "paye"
+                    ? "Payé"
+                    : "Non payé"
+              }
+            />
+          </>
+        )}
       </div>
     </div>
   );
