@@ -358,73 +358,78 @@ const roleFinal = profile?.role || "technicien";
               ✏️ Modifier
             </button>
 
-            <Link
-              href={`/devis/nouveau?callId=${call.id}`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "11px 15px",
-                borderRadius: "10px",
-                backgroundColor: "#2563eb",
-                color: "white",
-                textDecoration: "none",
-                fontWeight: 700,
-              }}
-            >
-              📄 Créer un devis
-            </Link>
+            {/* Devis et facture : réservés à l'administrateur */}
+            {role === "admin" && (
+              <>
+                <Link
+                  href={`/devis/nouveau?callId=${call.id}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "11px 15px",
+                    borderRadius: "10px",
+                    backgroundColor: "#2563eb",
+                    color: "white",
+                    textDecoration: "none",
+                    fontWeight: 700,
+                  }}
+                >
+                  📄 Créer un devis
+                </Link>
 
-            {factureLieeId ? (
-              <Link
-                href={`/factures/${factureLieeId}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "11px 15px",
-                  borderRadius: "10px",
-                  backgroundColor: "#0f172a",
-                  color: "white",
-                  textDecoration: "none",
-                  fontWeight: 700,
-                }}
-              >
-                🧾 Facture
-              </Link>
-            ) : quoteLieeId ? (
-              <Link
-                href={`/devis/${quoteLieeId}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "11px 15px",
-                  borderRadius: "10px",
-                  backgroundColor: "#0f172a",
-                  color: "white",
-                  textDecoration: "none",
-                  fontWeight: 700,
-                }}
-              >
-                🧾 Facture
-              </Link>
-            ) : (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "11px 15px",
-                  borderRadius: "10px",
-                  backgroundColor: "#e2e8f0",
-                  color: "#94a3b8",
-                  fontWeight: 700,
-                }}
-                title="Créez d'abord un devis pour cette intervention"
-              >
-                🧾 Facture
-              </span>
+                {factureLieeId ? (
+                  <Link
+                    href={`/factures/${factureLieeId}`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "11px 15px",
+                      borderRadius: "10px",
+                      backgroundColor: "#0f172a",
+                      color: "white",
+                      textDecoration: "none",
+                      fontWeight: 700,
+                    }}
+                  >
+                    🧾 Facture
+                  </Link>
+                ) : quoteLieeId ? (
+                  <Link
+                    href={`/devis/${quoteLieeId}`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "11px 15px",
+                      borderRadius: "10px",
+                      backgroundColor: "#0f172a",
+                      color: "white",
+                      textDecoration: "none",
+                      fontWeight: 700,
+                    }}
+                  >
+                    🧾 Facture
+                  </Link>
+                ) : (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "11px 15px",
+                      borderRadius: "10px",
+                      backgroundColor: "#e2e8f0",
+                      color: "#94a3b8",
+                      fontWeight: 700,
+                    }}
+                    title="Créez d'abord un devis pour cette intervention"
+                  >
+                    🧾 Facture
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
