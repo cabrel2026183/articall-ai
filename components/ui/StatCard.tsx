@@ -5,6 +5,7 @@ type StatCardProps = {
   value: string | number;
   icon: string;
   subtitle?: string;
+  compact?: boolean;
 };
 
 export default function StatCard({
@@ -12,7 +13,60 @@ export default function StatCard({
   value,
   icon,
   subtitle,
+  compact = false,
 }: StatCardProps) {
+  if (compact) {
+    return (
+      <div
+        style={{
+          border: "1px solid #e2e8f0",
+          borderRadius: "14px",
+          padding: "12px 14px",
+          background: "#ffffff",
+          boxShadow: "0 4px 14px rgba(15,23,42,.06)",
+          height: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "13px",
+            color: "#64748b",
+          }}
+        >
+          <span style={{ fontSize: "16px" }}>{icon}</span>
+          <span>{title}</span>
+        </div>
+
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "20px",
+            fontWeight: 700,
+            color: "#0f172a",
+          }}
+        >
+          {value}
+        </div>
+
+        {subtitle && (
+          <p
+            style={{
+              margin: "4px 0 0",
+              fontSize: "12px",
+              color: "#64748b",
+            }}
+          >
+            {subtitle}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{

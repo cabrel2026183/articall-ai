@@ -95,7 +95,7 @@ export default function Dashboard({
           <h1
             style={{
               margin: 0,
-              fontSize: "34px",
+              fontSize: "28px",
               color: "#0f172a",
               fontWeight: "700",
             }}
@@ -108,7 +108,7 @@ export default function Dashboard({
               marginTop: "8px",
               marginBottom: 0,
               color: "#64748b",
-              fontSize: "16px",
+              fontSize: "15px",
             }}
           >
             Pilotez votre entreprise en temps réel grâce à ArtiCall AI.
@@ -151,13 +151,13 @@ export default function Dashboard({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "14px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "12px",
           }}
         >
-          <StatCard title="CA total" value={`${stats.caTotal} €`} icon="💰" />
-          <StatCard title="CA encaissé" value={`${stats.caEncaisse} €`} icon="✅" />
-          <StatCard title="À encaisser" value={`${stats.aEncaisser} €`} icon="⏳" />
+          <StatCard title="CA total" value={`${stats.caTotal} €`} icon="💰" compact />
+          <StatCard title="CA encaissé" value={`${stats.caEncaisse} €`} icon="✅" compact />
+          <StatCard title="À encaisser" value={`${stats.aEncaisser} €`} icon="⏳" compact />
 
           <Link
             href="/factures"
@@ -166,16 +166,16 @@ export default function Dashboard({
               color: "inherit",
             }}
           >
-            <StatCard title="Factures" value="Voir" icon="🧾" />
+            <StatCard title="Factures" value="Voir" icon="🧾" compact />
           </Link>
 
-          <StatCard title="Appels" value={stats.appels} icon="📞" />
-          <StatCard title="Urgences" value={stats.urgents} icon="🚨" />
-          <StatCard title="Clients" value={stats.clients} icon="👥" />
+          <StatCard title="Appels" value={stats.appels} icon="📞" compact />
+          <StatCard title="Urgences" value={stats.urgents} icon="🚨" compact />
+          <StatCard title="Clients" value={stats.clients} icon="👥" compact />
         </div>
 
         <Card>
-          <h3 style={{ marginTop: 0 }}>📈 Chiffre d'affaires</h3>
+          <h3 style={{ marginTop: 0, fontSize: "16px" }}>📈 Chiffre d'affaires</h3>
           <RevenueChart />
         </Card>
       </div>
@@ -191,7 +191,7 @@ export default function Dashboard({
       >
         <div style={{ display: "grid", gap: "20px" }}>
           <Card>
-            <h3 style={{ marginTop: 0 }}>📅 Planning du jour</h3>
+            <h3 style={{ marginTop: 0, fontSize: "16px" }}>📅 Planning du jour</h3>
 
             {interventionsDuJour.length === 0 ? (
               <p style={{ color: "#64748b", marginBottom: 0 }}>
@@ -216,7 +216,7 @@ export default function Dashboard({
 
           {interventionsEnRetard.length > 0 && (
             <Card>
-              <h3 style={{ marginTop: 0, color: "#b91c1c" }}>
+              <h3 style={{ marginTop: 0, fontSize: "16px", color: "#b91c1c" }}>
                 ⚠️ En retard ({interventionsEnRetard.length})
               </h3>
 
@@ -270,7 +270,7 @@ export default function Dashboard({
         </div>
 
         <Card>
-          <h3 style={{ marginTop: 0 }}>📋 Activité récente</h3>
+          <h3 style={{ marginTop: 0, fontSize: "16px" }}>📋 Activité récente</h3>
 
           {derniersAppels.map((call) => (
             <div

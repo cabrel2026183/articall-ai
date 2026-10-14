@@ -59,8 +59,8 @@ export default function ActionsDuJour({ calls }: ActionsDuJourProps) {
     <section>
       <h2
         style={{
-          margin: "0 0 14px",
-          fontSize: "20px",
+          margin: "0 0 12px",
+          fontSize: "17px",
           color: "#0f172a",
         }}
       >
@@ -70,8 +70,8 @@ export default function ActionsDuJour({ calls }: ActionsDuJourProps) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "14px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+          gap: "12px",
         }}
       >
         <ActionTile
@@ -127,8 +127,8 @@ function ActionTile({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "14px",
-        padding: "16px 18px",
+        gap: "12px",
+        padding: "12px 14px",
         borderRadius: "14px",
         background: alerte ? "#fef2f2" : "white",
         border: "1px solid #e2e8f0",
@@ -138,12 +138,12 @@ function ActionTile({
         boxSizing: "border-box",
       }}
     >
-      <div style={{ fontSize: "26px" }}>{icon}</div>
+      <div style={{ fontSize: "22px" }}>{icon}</div>
 
       <div>
         <div
           style={{
-            fontSize: "28px",
+            fontSize: "24px",
             fontWeight: 800,
             lineHeight: 1,
             color: alerte ? "#b91c1c" : "#0f172a",
@@ -154,8 +154,8 @@ function ActionTile({
 
         <div
           style={{
-            marginTop: "6px",
-            fontSize: "13px",
+            marginTop: "4px",
+            fontSize: "12px",
             color: "#64748b",
             fontWeight: 600,
           }}
