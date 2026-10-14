@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Card from "../ui/Card";
-import Badge from "../ui/Badge";
+import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import type { Call } from "../../lib/types";
 
@@ -57,47 +56,126 @@ export default function ActionsDuJour({ calls }: ActionsDuJourProps) {
   );
 
   return (
-    <Card>
-      <h3 style={{ marginTop: 0 }}>📌 Mes actions du jour</h3>
+    <section>
+      <h2
+        style={{
+          margin: "0 0 14px",
+          fontSize: "20px",
+          color: "#0f172a",
+        }}
+      >
+        📌 Mes actions du jour
+      </h2>
 
-      <div style={{ display: "grid", gap: "12px" }}>
-        <ActionLine label="Interventions aujourd'hui" value={interventionsDuJour.length} badge="📅" />
-        <ActionLine label="Urgences à traiter" value={urgences.length} badge="🚨" danger />
-        <ActionLine label="Clients à rappeler" value={clientsARappeler.length} badge="📞" />
-        <ActionLine label="Factures à encaisser" value={facturesAEncaisser} badge="💰" warning />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "14px",
+        }}
+      >
+        <ActionTile
+          label="Interventions aujourd'hui"
+          value={interventionsDuJour.length}
+          icon="📅"
+          couleur="#2563eb"
+        />
+        <ActionTile
+          label="Urgences à traiter"
+          value={urgences.length}
+          icon="🚨"
+          couleur="#dc2626"
+          alerte={urgences.length > 0}
+        />
+        <ActionTile
+          label="Clients à rappeler"
+          value={clientsARappeler.length}
+          icon="📞"
+          couleur="#7c3aed"
+        />
+        <ActionTile
+          label="Factures à encaisser"
+          value={facturesAEncaisser}
+          icon="💰"
+          couleur="#d97706"
+          href="/factures"
+        />
       </div>
-    </Card>
+    </section>
   );
 }
 
-function ActionLine({
-  label,
-  value,
-  badge,
-  danger,
-  warning,
-}: {
+type ActionTileProps = {
   label: string;
   value: number;
-  badge: string;
-  danger?: boolean;
-  warning?: boolean;
-}) {
-  return (
+  icon: string;
+  couleur: string;
+  alerte?: boolean;
+  href?: string;
+};
+
+function ActionTile({
+  label,
+  value,
+  icon,
+  couleur,
+  alerte,
+  href,
+}: ActionTileProps) {
+  const contenu = (
     <div
       style={{
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "center",
-        borderBottom: "1px solid #e2e8f0",
-        paddingBottom: "10px",
+        gap: "14px",
+        padding: "16px 18px",
+        borderRadius: "14px",
+        background: alerte ? "#fef2f2" : "white",
+        border: "1px solid #e2e8f0",
+        borderLeft: `5px solid ${couleur}`,
+        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)",
+        height: "100%",
+        boxSizing: "border-box",
       }}
     >
-      <span>{badge} {label}</span>
+      <div style={{ fontSize: "26px" }}>{icon}</div>
 
-      <Badge variant={danger ? "danger" : warning ? "warning" : "info"}>
-        {value}
-      </Badge>
+      <div>
+        <div
+          style={{
+            fontSize: "28px",
+            fontWeight: 800,
+            lineHeight: 1,
+            color: alerte ? "#b91c1c" : "#0f172a",
+          }}
+        >
+          {value}
+        </div>
+
+        <div
+          style={{
+            marginTop: "6px",
+            fontSize: "13px",
+            color: "#64748b",
+            fontWeight: 600,
+          }}
+        >
+          {label}
+        </div>
+      </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
+        {contenu}
+      </Link>
+    );
+  }
+
+  return contenu;
 }

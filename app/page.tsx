@@ -68,6 +68,23 @@ const [workflowSummary, setWorkflowSummary] = useState("");
  const [technician, setTechnician] = useState("");
   const [signature, setSignature] = useState("");
  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+  const [vue, setVue] = useState<"tableau" | "calendrier">("tableau");
+
+  // Arrivée depuis une fiche client (?callId=...) : on ouvre directement le formulaire.
+  useEffect(() => {
+    if (clientCallId) setFormulaireOuvert(true);
+  }, [clientCallId]);
+
+  // Touche Échap : ferme le formulaire.
+  useEffect(() => {
+    function surTouche(event: KeyboardEvent) {
+      if (event.key === "Escape") setFormulaireOuvert(false);
+    }
+
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []);
 
    useEffect(() => {
     async function rechercherClientExistant() {
@@ -444,6 +461,7 @@ setCountry("France");
   chargerAppels();
   setPropertyType("");
   setPropertyTypeOther("");
+  setFormulaireOuvert(false);
 }
 }
 
@@ -512,10 +530,158 @@ if (role === "technicien") {
   role={role}
   calls={calls}
 >
-     
 
-     {role === "admin" && (
-  <CallForm
+      <Dashboard
+        calls={calls}
+        onNouvelAppel={
+          role === "admin"
+            ? () => setFormulaireOuvert(true)
+            : undefined
+        }
+      />
+
+      <section style={{ marginTop: "32px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+            marginBottom: "16px",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "22px",
+              color: "#0f172a",
+            }}
+          >
+            📋 Interventions
+          </h2>
+
+          <div
+            style={{
+              display: "inline-flex",
+              padding: "4px",
+              borderRadius: "12px",
+              background: "#f1f5f9",
+              gap: "4px",
+            }}
+          >
+            {(
+              [
+                { id: "tableau", label: "📋 Tableau" },
+                { id: "calendrier", label: "📅 Calendrier" },
+              ] as const
+            ).map((onglet) => (
+              <button
+                key={onglet.id}
+                type="button"
+                onClick={() => setVue(onglet.id)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "9px",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  background:
+                    vue === onglet.id ? "white" : "transparent",
+                  color:
+                    vue === onglet.id ? "#0f172a" : "#64748b",
+                  boxShadow:
+                    vue === onglet.id
+                      ? "0 1px 3px rgba(15, 23, 42, 0.15)"
+                      : "none",
+                }}
+              >
+                {onglet.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {vue === "tableau" ? (
+          <>
+            <Filters
+              search={search}
+              setSearch={setSearch}
+              filtreUrgence={filtreUrgence}
+              setFiltreUrgence={setFiltreUrgence}
+              filtreTechnicien={filtreTechnicien}
+              setFiltreTechnicien={setFiltreTechnicien}
+            />
+
+            <InterventionsTable
+              calls={calls}
+              afficherDate={afficherDate}
+            />
+          </>
+        ) : (
+          <CalendarView calls={calls} />
+        )}
+      </section>
+
+      {role === "admin" && formulaireOuvert && (
+        <div
+          onClick={() => setFormulaireOuvert(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(15, 23, 42, 0.55)",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "32px 16px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "980px",
+              background: "#f8fafc",
+              borderRadius: "20px",
+              padding: "20px 24px 24px",
+              boxShadow: "0 24px 60px rgba(15, 23, 42, 0.35)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "12px",
+              }}
+            >
+              <h2 style={{ margin: 0, color: "#0f172a" }}>
+                {editingId ? "Modifier l'appel" : "📞 Nouvel appel"}
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => setFormulaireOuvert(false)}
+                aria-label="Fermer le formulaire"
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: "white",
+                  borderRadius: "10px",
+                  width: "38px",
+                  height: "38px",
+                  fontSize: "18px",
+                  cursor: "pointer",
+                  color: "#334155",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <CallForm
     editingId={editingId}
     clientName={clientName}
     setClientName={setClientName}
@@ -565,25 +731,9 @@ setPropertyType={setPropertyType}
 propertyTypeOther={propertyTypeOther}
 setPropertyTypeOther={setPropertyTypeOther}
   />
-)}
-
-      <Dashboard calls={calls} />
-
-    <Filters
-  search={search}
-  setSearch={setSearch}
-  filtreUrgence={filtreUrgence}
-  setFiltreUrgence={setFiltreUrgence}
-  filtreTechnicien={filtreTechnicien}
-  setFiltreTechnicien={setFiltreTechnicien}
-/>
-
-<InterventionsTable
-  calls={calls}
-  afficherDate={afficherDate}
-/>
-
-<CalendarView calls={calls} />
+          </div>
+        </div>
+      )}
 
 </MainLayout>
 );
