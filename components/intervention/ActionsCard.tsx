@@ -33,6 +33,9 @@ export default function ActionsCard({
   const router = useRouter();
   const { showToast } = useToast();
 
+  // Devis, factures et montants : réservés à l'administrateur.
+  const estAdmin = role === "admin";
+
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -48,8 +51,15 @@ const [factureLiee, setFactureLiee] = useState<{
 } | null>(null);
 
 useEffect(() => {
+  if (!estAdmin) {
+    setQuoteLieeId(null);
+    setFactureLiee(null);
+    return;
+  }
+
   chargerFactureLiee();
-}, [call.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [call.id, estAdmin]);
 
 async function chargerFactureLiee() {
   const { data: quoteData, error: quoteError } = await supabase
@@ -438,29 +448,34 @@ doc.text(
   interventionTableFinalY + 22
 );
 
-  autoTable(doc, {
-  startY:
-    interventionTableFinalY +
-    35 +
-    resumeLignes.length * 6,
-    head: [["Paiement", "Détail"]],
-    body: [
-      [
-        "Montant total",
-        factureLiee
-          ? `${factureLiee.total_amount ?? 0} €`
-          : "Aucune facture émise",
+  if (estAdmin) {
+    autoTable(doc, {
+    startY:
+      interventionTableFinalY +
+      35 +
+      resumeLignes.length * 6,
+      head: [["Paiement", "Détail"]],
+      body: [
+        [
+          "Montant total",
+          factureLiee
+            ? `${factureLiee.total_amount ?? 0} €`
+            : "Aucune facture émise",
+        ],
+        ["Statut du paiement", paiementLisible],
       ],
-      ["Statut du paiement", paiementLisible],
-    ],
-    styles: {
-      fontSize: 10,
-      cellPadding: 4,
-    },
-  });
+      styles: {
+        fontSize: 10,
+        cellPadding: 4,
+      },
+    });
 
-  const paiementTableFinalY =
-  (doc as any).lastAutoTable?.finalY || 220;
+  }
+
+  // Sans tableau « Paiement » (technicien), la suite démarre sous le résumé.
+  const paiementTableFinalY = estAdmin
+    ? (doc as any).lastAutoTable?.finalY || 220
+    : interventionTableFinalY + 22 + resumeLignes.length * 6;
 
   if (
   call.photo_before_url ||
@@ -1011,29 +1026,31 @@ const isAdmin =
           {generating ? "Génération..." : "Bon PDF"}
         </Button>
 
-        <Button
-  variant="secondary"
-  onClick={() => {
-    if (factureLiee) {
-      router.push(`/factures/${factureLiee.id}`);
-      return;
-    }
+        {estAdmin && (
+          <Button
+    variant="secondary"
+    onClick={() => {
+      if (factureLiee) {
+        router.push(`/factures/${factureLiee.id}`);
+        return;
+      }
 
-    if (quoteLieeId) {
-      router.push(`/devis/${quoteLieeId}`);
-      return;
-    }
+      if (quoteLieeId) {
+        router.push(`/devis/${quoteLieeId}`);
+        return;
+      }
 
-    showToast({
-      type: "info",
-      title: "Aucun devis",
-      message:
-        "Créez d'abord un devis pour cette intervention avant de générer une facture.",
-    });
-  }}
->
-  🧾 Facture
-</Button>
+      showToast({
+        type: "info",
+        title: "Aucun devis",
+        message:
+          "Créez d'abord un devis pour cette intervention avant de générer une facture.",
+      });
+    }}
+  >
+    🧾 Facture
+  </Button>
+        )}
 
         <Button
           variant="secondary"
@@ -1061,12 +1078,14 @@ const isAdmin =
         )}
                
        
-<Button
-  variant="danger"
-  onClick={() => setShowDeleteDialog(true)}
->
-  {deleting ? "Suppression..." : "Supprimer"}
-</Button>
+{estAdmin && (
+  <Button
+    variant="danger"
+    onClick={() => setShowDeleteDialog(true)}
+  >
+    {deleting ? "Suppression..." : "Supprimer"}
+  </Button>
+)}
 
         <Button
           variant="secondary"
