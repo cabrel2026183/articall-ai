@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 import type { AuthUser } from "../../lib/types";
 
 type SidebarProps = {
@@ -9,10 +10,15 @@ type SidebarProps = {
   role?: string;
 };
 
-export default function Sidebar({ role }: SidebarProps) {
+export default function Sidebar({ user, role }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = role === "admin";
 const isTechnician = role === "technicien";
+
+  async function deconnexion() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
 
   function routeActive(route: string) {
     if (route === "/") {
@@ -109,13 +115,6 @@ const isTechnician = role === "technicien";
   {isAdmin && (
     <>
       <Link
-        href="/planning"
-        style={linkStyle(routeActive("/planning"))}
-      >
-        🗓️ Planning technicien
-      </Link>
-
-      <Link
         href="/clients"
         style={linkStyle(routeActive("/clients"))}
       >
@@ -186,6 +185,58 @@ const isTechnician = role === "technicien";
     </>
   )}
 </nav>
+
+      <div
+        style={{
+          marginTop: "auto",
+          borderTop: "1px solid #334155",
+          paddingTop: "20px",
+        }}
+      >
+        {user && (
+          <>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "13px",
+                color: "#cbd5e1",
+                overflowWrap: "anywhere",
+              }}
+            >
+              👤 {user.email}
+            </p>
+
+            <p
+              style={{
+                color:
+                  role === "admin"
+                    ? "#38bdf8"
+                    : "#22c55e",
+                fontWeight: "700",
+              }}
+            >
+              {role === "admin"
+                ? "👑 Administrateur"
+                : "👷 Technicien"}
+            </p>
+          </>
+        )}
+
+        <button
+          type="button"
+          onClick={deconnexion}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "700",
+          }}
+        >
+          🚪 Déconnexion
+        </button>
+      </div>
     </aside>
   );
 }
